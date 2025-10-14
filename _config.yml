@@ -1,0 +1,48 @@
+# GitHub Pages Configuration for Mint-Track
+title: "Mint-Track - Expense Tracker"
+description: "A simple and powerful expense tracking application"
+url: ""
+baseurl: ""
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - .gitignore
+  - .git/
+
+# Include files that start with underscores
+include:
+  - _config.yml
+
+# GitHub Pages specific settings
+plugins:
+  - jekyll-sitemap
+  - jekyll-feed
+
+# Site metadata
+author: "Mint-Track Team"
+lang: "en"
+
+# SEO settings
+twitter:
+  username: ""
+  card: summary
+
+# Social media and contact
+social:
+  name: "Mint-Track"
+  links: []
+
+# Google Analytics (if needed in future)
+# google_analytics: ""
+
+# Theme (using default GitHub Pages theme)
+theme: minima
+
+# Custom variables
+version: "1.0.0"
+app_name: "Mint-Track"

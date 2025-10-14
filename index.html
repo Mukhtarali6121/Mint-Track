@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mint-Track - Expense Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <i class="fas fa-coins"></i>
+                    <span>Mint-Track</span>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="#home" class="nav-link">Home</a></li>
+                    <li><a href="#features" class="nav-link">Features</a></li>
+                    <li><a href="#about" class="nav-link">About</a></li>
+                    <li><a href="terms.html" class="nav-link">Terms</a></li>
+                    <li><a href="privacy.html" class="nav-link">Privacy</a></li>
+                </ul>
+                <div class="hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="home" class="hero">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <h1>Take Control of Your Finances</h1>
+                    <p>Track expenses, set budgets, and achieve your financial goals with Mint-Track - the simple and powerful expense tracker.</p>
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary" onclick="startApp()">Start Tracking</button>
+                        <button class="btn btn-secondary" onclick="scrollToFeatures()">Learn More</button>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <div class="app-preview">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="features">
+            <div class="container">
+                <h2>Why Choose Mint-Track?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <h3>Easy Expense Tracking</h3>
+                        <p>Quickly add and categorize your expenses with our intuitive interface.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Visual Analytics</h3>
+                        <p>View your spending patterns with beautiful charts and graphs.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <h3>Budget Management</h3>
+                        <p>Set budgets for different categories and track your progress.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <h3>Mobile Friendly</h3>
+                        <p>Access your expense data anywhere with our responsive design.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3>Secure & Private</h3>
+                        <p>Your financial data is stored securely and never shared.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-download"></i>
+                        </div>
+                        <h3>Export Data</h3>
+                        <p>Export your expense data in various formats for analysis.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- App Section -->
+        <section id="app" class="app-section">
+            <div class="container">
+                <h2>Start Tracking Your Expenses</h2>
+                <div class="app-container">
+                    <div class="expense-form">
+                        <h3>Add New Expense</h3>
+                        <form id="expenseForm">
+                            <div class="form-group">
+                                <label for="amount">Amount ($)</label>
+                                <input type="number" id="amount" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Description</label>
+                                <input type="text" id="description" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Category</label>
+                                <select id="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="food">Food & Dining</option>
+                                    <option value="transport">Transportation</option>
+                                    <option value="shopping">Shopping</option>
+                                    <option value="entertainment">Entertainment</option>
+                                    <option value="bills">Bills & Utilities</option>
+                                    <option value="healthcare">Healthcare</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="date">Date</label>
+                                <input type="date" id="date" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Expense</button>
+                        </form>
+                    </div>
+                    <div class="expense-summary">
+                        <h3>Expense Summary</h3>
+                        <div class="summary-cards">
+                            <div class="summary-card">
+                                <h4>Total Spent</h4>
+                                <p class="amount" id="totalSpent">$0.00</p>
+                            </div>
+                            <div class="summary-card">
+                                <h4>This Month</h4>
+                                <p class="amount" id="monthlySpent">$0.00</p>
+                            </div>
+                            <div class="summary-card">
+                                <h4>Transactions</h4>
+                                <p class="amount" id="transactionCount">0</p>
+                            </div>
+                        </div>
+                        <div class="expense-list">
+                            <h4>Recent Expenses</h4>
+                            <div id="expensesList">
+                                <p class="no-expenses">No expenses added yet. Start by adding your first expense!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="about">
+            <div class="container">
+                <h2>About Mint-Track</h2>
+                <div class="about-content">
+                    <p>Mint-Track is a simple yet powerful expense tracking application designed to help you take control of your personal finances. Whether you're trying to stick to a budget, understand your spending habits, or simply keep track of where your money goes, Mint-Track provides the tools you need.</p>
+                    <p>Built with modern web technologies, Mint-Track offers a clean, intuitive interface that makes expense tracking effortless. Your data is stored locally in your browser, ensuring complete privacy and security.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Mint-Track</h4>
+                    <p>Your personal expense tracking companion.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="terms.html">Terms & Conditions</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Questions? Reach out to us!</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Mint-Track. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
