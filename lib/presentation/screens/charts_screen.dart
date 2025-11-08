@@ -257,6 +257,28 @@ class _ChartsScreenState extends State<ChartsScreen>
   }
 
   Widget _buildMonthSelector(List<int> availableMonths, [List<int>? availableYears]) {
+    // Ensure selected month is valid
+    final validMonth = availableMonths.contains(_selectedMonth.month) 
+        ? _selectedMonth.month 
+        : (availableMonths.isNotEmpty ? availableMonths.first : null);
+    
+    // Ensure selected year is valid
+    final yearsList = availableYears ?? [DateTime.now().year];
+    final validYear = yearsList.contains(_selectedMonth.year)
+        ? _selectedMonth.year
+        : (yearsList.isNotEmpty ? yearsList.first : DateTime.now().year);
+    
+    // Update state if needed
+    if (validMonth != null && (_selectedMonth.month != validMonth || _selectedMonth.year != validYear)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedMonth = DateTime(validYear, validMonth);
+          });
+        }
+      });
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -289,7 +311,7 @@ class _ChartsScreenState extends State<ChartsScreen>
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedMonth.month,
+                  value: validMonth,
                   decoration: InputDecoration(
                     labelText: 'Month',
                     labelStyle: AppFonts.inputLabel.copyWith(
@@ -335,7 +357,7 @@ class _ChartsScreenState extends State<ChartsScreen>
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedMonth.year,
+                  value: validYear,
                   decoration: InputDecoration(
                     labelText: 'Year',
                     labelStyle: AppFonts.inputLabel.copyWith(
@@ -358,7 +380,7 @@ class _ChartsScreenState extends State<ChartsScreen>
                     fillColor: AppColors.backgroundScaffold,
                   ),
                   dropdownColor: AppColors.cardBackground,
-                  items: (availableYears ?? [DateTime.now().year]).map((year) {
+                  items: yearsList.map((year) {
                     return DropdownMenuItem(
                       value: year,
                       child: Text(
@@ -386,6 +408,22 @@ class _ChartsScreenState extends State<ChartsScreen>
   }
 
   Widget _buildYearSelector(List<int> availableYears) {
+    // Ensure selected year is valid
+    final validYear = availableYears.contains(_selectedYear)
+        ? _selectedYear
+        : (availableYears.isNotEmpty ? availableYears.first : DateTime.now().year);
+    
+    // Update state if needed
+    if (_selectedYear != validYear) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedYear = validYear;
+          });
+        }
+      });
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -415,7 +453,7 @@ class _ChartsScreenState extends State<ChartsScreen>
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<int>(
-            value: _selectedYear,
+            value: validYear,
             decoration: InputDecoration(
               labelText: 'Year',
               labelStyle: AppFonts.inputLabel.copyWith(
@@ -463,6 +501,28 @@ class _ChartsScreenState extends State<ChartsScreen>
   }
 
   Widget _buildDateRangeSelector(List<int> availableYears, List<int> availableMonths) {
+    // Ensure selected month is valid
+    final validMonth = availableMonths.contains(_selectedMonth.month) 
+        ? _selectedMonth.month 
+        : (availableMonths.isNotEmpty ? availableMonths.first : null);
+    
+    // Ensure selected year is valid
+    final validYear = availableYears.contains(_selectedMonth.year)
+        ? _selectedMonth.year
+        : (availableYears.isNotEmpty ? availableYears.first : DateTime.now().year);
+    
+    // Update state if needed
+    if (validMonth != null && (_selectedMonth.month != validMonth || _selectedMonth.year != validYear)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedMonth = DateTime(validYear, validMonth);
+            _selectedYear = validYear;
+          });
+        }
+      });
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -495,7 +555,7 @@ class _ChartsScreenState extends State<ChartsScreen>
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedMonth.month,
+                  value: validMonth,
                   decoration: InputDecoration(
                     labelText: 'Month',
                     labelStyle: AppFonts.inputLabel.copyWith(
@@ -541,7 +601,7 @@ class _ChartsScreenState extends State<ChartsScreen>
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedMonth.year,
+                  value: validYear,
                   decoration: InputDecoration(
                     labelText: 'Year',
                     labelStyle: AppFonts.inputLabel.copyWith(

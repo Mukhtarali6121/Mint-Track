@@ -1,26 +1,26 @@
 import 'package:expense_tracker/theme/app_colors.dart';
 import 'package:expense_tracker/theme/app_fonts.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:upgrader/upgrader.dart';
 
-import 'package:package_info_plus/package_info_plus.dart';
-
-import 'services/update_check_service.dart';
+import 'account_provider.dart';
 import 'common/currency_formatter.dart';
 import 'common/currency_provider.dart';
+import 'common/feature_flags.dart';
 import 'common/hive_storage.dart';
 import 'edit_transaction.dart';
 import 'models.dart';
 import 'models/category.dart';
+import 'search_screen.dart';
 import 'services/notification_service.dart';
+import 'services/update_check_service.dart';
 import 'transaction_provider.dart';
-import 'account_provider.dart';
 import 'widgets/goals_widget.dart';
-import 'common/feature_flags.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,7 +29,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   PeriodFilter _filter = PeriodFilter.month;
   DateTimeRange? _customRange;
   bool _isSyncing = false;
@@ -39,8 +40,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-
-
 
   DateTimeRange _currentRange() {
     final now = DateTime.now();
@@ -85,57 +84,50 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _fadeController.forward();
     _slideController.forward();
 
     // Initialize notifications
     _initializeNotifications();
-    
+
     // Check for app updates
     _checkForUpdates();
   }
-  
+
   /// Check for app updates from Play Store
   Future<void> _checkForUpdates() async {
     // Wait a bit to ensure the widget tree is built
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
-    
+
     try {
       final updateService = UpdateCheckService();
       final packageName = await updateService.getPackageName();
       final currentVersion = await updateService.getCurrentVersion();
-      
+
       debugPrint('UpdateCheck: Current version: $currentVersion');
       debugPrint('UpdateCheck: Package name: $packageName');
-      
+
       // Try to get latest version from Play Store
       final latestVersion = await updateService.checkForUpdate(packageName);
-      
+
       if (latestVersion != null) {
         debugPrint('UpdateCheck: Latest version found: $latestVersion');
-        
+
         // Compare versions
         if (updateService.isVersionNewer(currentVersion, latestVersion)) {
           debugPrint('UpdateCheck: Update available!');
-          
+
           // Check if dialog has already been shown in this session
           if (!updateService.hasShownUpdateDialog && mounted) {
             // Show custom update dialog
@@ -146,22 +138,25 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               packageName: packageName,
             );
           } else {
-            debugPrint('UpdateCheck: Update dialog already shown in this session');
+            debugPrint(
+              'UpdateCheck: Update dialog already shown in this session',
+            );
           }
         } else {
           debugPrint('UpdateCheck: App is up to date');
         }
       } else {
         debugPrint('UpdateCheck: Could not determine latest version');
-        
+
         // FOR TESTING: Manual override for closed testing
         // Set this to the version that's live in closed testing
         // Remove this in production or make it configurable via remote config
-        const testLatestVersion = '1.0.4'; // Change this to match your closed testing version
-        
+        const testLatestVersion =
+            '1.0.4'; // Change this to match your closed testing version
+
         if (updateService.isVersionNewer(currentVersion, testLatestVersion)) {
           debugPrint('UpdateCheck: Test mode - Update available!');
-          
+
           // Check if dialog has already been shown in this session
           if (!updateService.hasShownUpdateDialog && mounted) {
             await UpdateCheckService.showUpdateDialog(
@@ -171,7 +166,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               packageName: packageName,
             );
           } else {
-            debugPrint('UpdateCheck: Update dialog already shown in this session (test mode)');
+            debugPrint(
+              'UpdateCheck: Update dialog already shown in this session (test mode)',
+            );
           }
         } else {
           debugPrint('UpdateCheck: App is up to date (test mode)');
@@ -180,7 +177,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     } catch (e) {
       debugPrint('UpdateCheck: Error checking updates: $e');
     }
-    
+
     // UpgraderAlert will also check automatically (for production when app is public)
   }
 
@@ -202,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           await NotificationService().scheduleDailyNotification();
 
           // Show a welcome notification
-         /* await NotificationService().showTestNotification();
+          /* await NotificationService().showTestNotification();
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -304,14 +301,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     final accountProvider = context.watch<AccountProvider>();
     final range = _currentRange();
     var items = provider.inRange(range.start, range.end);
-    
+
     // Filter by selected account if one is selected
     if (_selectedAccountId != null) {
       items = items.where((e) => e.accountId == _selectedAccountId).toList();
     }
-    
+
     final allTransactions = provider.items;
-    final accounts = accountProvider.accounts;
 
     // Calculate totals based on filtered items
     final income = items
@@ -320,7 +316,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     final expense = items
         .where((e) => e.type == TransactionType.expense)
         .fold(0.0, (p, e) => p + e.amount);
-    
+
     // If account is selected, get account-specific balance
     double accountBalance = 0.0;
     if (_selectedAccountId != null) {
@@ -329,44 +325,43 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
     // Only show update check on Android
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
-    
+
     Widget dashboardContent = Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: false,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: false,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0, // Prevent elevation change on scroll
-          surfaceTintColor: Colors.transparent, // Prevent tint color change
-          automaticallyImplyLeading: false, // Prevent back button
-          title: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Text(
-                'Dashboard',
-                style: AppFonts.appBarTitle.copyWith(
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        // Prevent elevation change on scroll
+        surfaceTintColor: Colors.transparent,
+        // Prevent tint color change
+        automaticallyImplyLeading: false,
+        // Prevent back button
+        title: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Text(
+              'Dashboard',
+              style: AppFonts.appBarTitle.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          centerTitle: true,
         ),
-        body: Container(
+        centerTitle: true,
+      ),
+      body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF8F9F8),
-              Color(0xFFE8F5E9),
-              Color(0xFFF1F8E9),
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [Color(0xFFF8F9F8), Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
+            stops: [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
@@ -375,392 +370,316 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Column(
                     children: [
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: SlideTransition(
-                    position: _slideAnimation,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white,
-                            Colors.white.withOpacity(0.9),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _selectedAccountId == null 
-                                      ? 'Total Balance' 
-                                      : '${accountProvider.getAccount(_selectedAccountId!)?.name ?? "Account"} Balance',
-                                  style: AppFonts.titleLarge.copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  CurrencyFormatter.format(
-                                    amount: _selectedAccountId == null 
-                                        ? (income - expense)
-                                        : accountBalance,
-                                    symbol: currencySymbol,
-                                    decimalDigits: 1,
-                                    spaceBetween: true,
-                                  ),
-                                  style: AppFonts.titleLarge.copyWith(
-                                    color: (_selectedAccountId == null ? (income - expense) : accountBalance) >= 0
-                                        ? Colors.teal
-                                        : Colors.redAccent,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildSummaryTile(
-                                    label: 'Expenses',
-                                    amount: expense,
-                                    backgroundColor: AppColors.error,
-                                    icon: Icons.arrow_upward,
-                                    iconColor: Colors.white,
-                                    currency: currencySymbol,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildSummaryTile(
-                                    label: 'Income',
-                                    amount: income,
-                                    backgroundColor: AppColors.accentGreen,
-                                    icon: Icons.arrow_downward,
-                                    iconColor: Colors.white,
-                                    currency: currencySymbol,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Goals Widget
-                if (FeatureFlags.goalsFeatureEnabled) ...[
-                  const GoalsWidget(),
-                  const SizedBox(height: 16),
-                ],
-
-                // Sync Status Indicator
-                // Consumer<TransactionProvider>(
-                //   builder: (context, provider, child) {
-                //     final syncStats = provider.getSyncStatistics();
-                //     final unsyncedCount = syncStats['unsynced'] ?? 0;
-                //
-                //     if (unsyncedCount > 0) {
-                //       return Container(
-                //         margin: const EdgeInsets.only(bottom: 16),
-                //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                //         decoration: BoxDecoration(
-                //           color: Colors.orange.shade50,
-                //           borderRadius: BorderRadius.circular(12),
-                //           border: Border.all(color: Colors.orange.shade200),
-                //         ),
-                //         child: Row(
-                //           children: [
-                //             Icon(Icons.cloud_off, color: Colors.orange.shade600, size: 20),
-                //             const SizedBox(width: 8),
-                //             Expanded(
-                //               child: Text(
-                //                 '$unsyncedCount transactions not synced',
-                //                 style: TextStyle(
-                //                   color: Colors.orange.shade700,
-                //                   fontWeight: FontWeight.w500,
-                //                 ),
-                //               ),
-                //             ),
-                //             TextButton(
-                //               onPressed: _isSyncing ? null : _syncTransactions,
-                //               child: Text(
-                //                 'Sync Now',
-                //                 style: TextStyle(
-                //                   color: Colors.orange.shade700,
-                //                   fontWeight: FontWeight.bold,
-                //                 ),
-                //               ),
-                //             ),
-                //           ],
-                //         ),
-                //       );
-                //     }
-                //
-                //     return const SizedBox.shrink();
-                //   },
-                // ),
-                // Enhanced Transactions Header & Filters Section
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white,
-                        Colors.white.withOpacity(0.95),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Row with Title and Icon
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Container(
+                            width: double.infinity,
                             decoration: BoxDecoration(
-                              color: AppColors.accentGreen.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.receipt_long,
-                              color: AppColors.accentGreen,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            "Transactions",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Filters Row
-                      Row(
-                        children: [
-                          // Period Filter
-                          Expanded(
-                            child: Container(
-                              height: 50,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: AppColors.backgroundScaffold,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: AppColors.accentGreen.withOpacity(0.3),
-                                  width: 1.5,
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
                                 ),
-                              ),
-                              child: Row(
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
                                 children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 18,
-                                    color: AppColors.accentGreen,
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        _selectedAccountId == null
+                                            ? 'Total Balance'
+                                            : '${accountProvider.getAccount(_selectedAccountId!)?.name ?? "Account"} Balance',
+                                        style: AppFonts.titleLarge.copyWith(
+                                          color: AppColors.textSecondary,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        CurrencyFormatter.format(
+                                          amount: _selectedAccountId == null
+                                              ? (income - expense)
+                                              : accountBalance,
+                                          symbol: currencySymbol,
+                                          decimalDigits: 1,
+                                          spaceBetween: true,
+                                        ),
+                                        style: AppFonts.titleLarge.copyWith(
+                                          color:
+                                              (_selectedAccountId == null
+                                                      ? (income - expense)
+                                                      : accountBalance) >=
+                                                  0
+                                              ? AppColors.accentGreen
+                                              : AppColors.error,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 28,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: DropdownButton<PeriodFilter>(
-                                      value: _filter,
-                                      isExpanded: true,
-                                      underline: const SizedBox.shrink(),
-                                      style: TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildSummaryTile(
+                                          label: 'Expenses',
+                                          amount: expense,
+                                          backgroundColor: AppColors.error,
+                                          icon: Icons.arrow_upward,
+                                          iconColor: Colors.white,
+                                          currency: currencySymbol,
+                                        ),
                                       ),
-                                      icon: Icon(
-                                        Icons.keyboard_arrow_down,
-                                        color: AppColors.accentGreen,
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _buildSummaryTile(
+                                          label: 'Income',
+                                          amount: income,
+                                          backgroundColor:
+                                              AppColors.accentGreen,
+                                          icon: Icons.arrow_downward,
+                                          iconColor: Colors.white,
+                                          currency: currencySymbol,
+                                        ),
                                       ),
-                                      items: [
-                                        PeriodFilter.day,
-                                        PeriodFilter.week,
-                                        PeriodFilter.month,
-                                        PeriodFilter.year,
-                                        PeriodFilter.custom,
-                                      ].map((PeriodFilter filter) {
-                                        return DropdownMenuItem<PeriodFilter>(
-                                          value: filter,
-                                          child: Text(
-                                            _labelForFilter(filter),
-                                            style: TextStyle(
-                                              color: AppColors.textPrimary,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: (PeriodFilter? newValue) async {
-                                        if (newValue == null) return;
-
-                                        if (newValue == PeriodFilter.custom) {
-                                          final picked = await showDateRangePicker(
-                                            context: context,
-                                            firstDate: DateTime(2015),
-                                            lastDate: DateTime(2100),
-                                            initialDateRange: _currentRange(),
-                                          );
-
-                                          if (picked != null) {
-                                            setState(() {
-                                              _filter = newValue;
-                                              _customRange = DateTimeRange(
-                                                start: _startOfDay(picked.start),
-                                                end: _endOfDay(picked.end),
-                                              );
-                                            });
-                                          }
-                                        } else {
-                                          setState(() {
-                                            _filter = newValue;
-                                          });
-                                        }
-                                      },
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          
-                          // Account Filter (only if accounts exist)
-                          if (accounts.isNotEmpty) ...[
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                height: 50,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.backgroundScaffold,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: AppColors.accentGreen.withOpacity(0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.account_balance_wallet,
-                                      size: 18,
-                                      color: AppColors.accentGreen,
+                        ),
+                      ),
+
+                      // Goals Widget
+                      if (FeatureFlags.goalsFeatureEnabled) ...[
+                        const GoalsWidget(),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Sync Status Indicator
+                      // Consumer<TransactionProvider>(
+                      //   builder: (context, provider, child) {
+                      //     final syncStats = provider.getSyncStatistics();
+                      //     final unsyncedCount = syncStats['unsynced'] ?? 0;
+                      //
+                      //     if (unsyncedCount > 0) {
+                      //       return Container(
+                      //         margin: const EdgeInsets.only(bottom: 16),
+                      //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      //         decoration: BoxDecoration(
+                      //           color: Colors.orange.shade50,
+                      //           borderRadius: BorderRadius.circular(12),
+                      //           border: Border.all(color: Colors.orange.shade200),
+                      //         ),
+                      //         child: Row(
+                      //           children: [
+                      //             Icon(Icons.cloud_off, color: Colors.orange.shade600, size: 20),
+                      //             const SizedBox(width: 8),
+                      //             Expanded(
+                      //               child: Text(
+                      //                 '$unsyncedCount transactions not synced',
+                      //                 style: TextStyle(
+                      //                   color: Colors.orange.shade700,
+                      //                   fontWeight: FontWeight.w500,
+                      //                 ),
+                      //               ),
+                      //             ),
+                      //             TextButton(
+                      //               onPressed: _isSyncing ? null : _syncTransactions,
+                      //               child: Text(
+                      //                 'Sync Now',
+                      //                 style: TextStyle(
+                      //                   color: Colors.orange.shade700,
+                      //                   fontWeight: FontWeight.bold,
+                      //                 ),
+                      //               ),
+                      //             ),
+                      //           ],
+                      //         ),
+                      //       );
+                      //     }
+                      //
+                      //     return const SizedBox.shrink();
+                      //   },
+                      // ),
+                      // Recent Transactions Header with Search and Filter (only show if transactions exist)
+                      const SizedBox(height: 16),
+
+                      if (allTransactions.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header Row with Title and Date Range
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Transactions",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.3,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: DropdownButton<String>(
-                                        value: _selectedAccountId,
-                                        isExpanded: true,
-                                        underline: const SizedBox.shrink(),
-                                        hint: Text(
-                                          'All Accounts',
-                                          style: TextStyle(
-                                            color: AppColors.textSecondary,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        style: TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                        icon: Icon(
-                                          Icons.keyboard_arrow_down,
+                                  ),
+                                  // Date Range Indicator
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentGreen.withOpacity(
+                                        0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today,
+                                          size: 12,
                                           color: AppColors.accentGreen,
                                         ),
-                                        items: [
-                                          DropdownMenuItem<String>(
-                                            value: null,
-                                            child: Text(
-                                              'All Accounts',
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _getDateRangeText(),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.accentGreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Search and Filter Row
+                              Row(
+                                children: [
+                                  // Search Bar
+                                  Expanded(
+                                    child: InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const SearchScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        height: 44,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.backgroundScaffold,
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.border.withOpacity(
+                                              0.6,
+                                            ),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.search,
+                                              size: 20,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              'Search transactions...',
                                               style: TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textSecondary,
+                                                fontSize: 14,
                                               ),
                                             ),
-                                          ),
-                                          ...accounts.map((account) {
-                                            return DropdownMenuItem<String>(
-                                              value: account.id,
-                                              child: Text(
-                                                account.name,
-                                                style: TextStyle(
-                                                  color: AppColors.textPrimary,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ],
-                                        onChanged: (String? newValue) {
-                                          setState(() {
-                                            _selectedAccountId = newValue;
-                                          });
-                                        },
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 12), // Filter Button
+                                  InkWell(
+                                    onTap: () =>
+                                        _showFilterBottomSheet(context),
+                                    child: Container(
+                                      height: 44,
+                                      width: 44,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.backgroundScaffold,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: AppColors.border.withOpacity(
+                                            0.6,
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.tune,
+                                        size: 20,
+                                        color: AppColors.accentGreen,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
-                // Transaction List (no longer Expanded, just part of scrollable content)
-                items.isEmpty
-                    ? _buildEmptyState(allTransactions.isEmpty)
-                    : _buildGroupedTransactionList(items, currencySymbol),
-                
-                const SizedBox(height: 80), // Extra padding at bottom for FAB
+                      // Transaction List (no longer Expanded, just part of scrollable content)
+                      items.isEmpty
+                          ? _buildEmptyState(allTransactions.isEmpty)
+                          : _buildGroupedTransactionList(items, currencySymbol),
+
+                      const SizedBox(height: 80),
+                      // Extra padding at bottom for FAB
                     ],
                   ),
                 ),
@@ -769,16 +688,15 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           ),
         ),
       ),
-        floatingActionButton: allTransactions.isEmpty
-            ? null
-            : FloatingActionButton(
-          onPressed: () => Navigator.of(context).pushNamed('/edit'),
-          backgroundColor: AppColors.accentGreen,
-          // your desired color
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
-      );
-    
+      floatingActionButton: allTransactions.isEmpty
+          ? null
+          : FloatingActionButton(
+              onPressed: () => Navigator.of(context).pushNamed('/edit'),
+              backgroundColor: AppColors.accentGreen,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+    );
+
     // Wrap with UpgradeAlert only on Android
     if (isAndroid) {
       return UpgradeAlert(
@@ -792,7 +710,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         child: dashboardContent,
       );
     }
-    
+
     return dashboardContent;
   }
 
@@ -813,112 +731,93 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                      // Animated Icon
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.accentGreen.withOpacity(0.1),
-                              AppColors.accentGreen.withOpacity(0.05),
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentGreen.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
+                    // Animated Icon
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.accentGreen.withOpacity(0.1),
+                            AppColors.accentGreen.withOpacity(0.05),
                           ],
                         ),
-                        child: Icon(
-                          Icons.receipt_long_outlined,
-                          size: 50,
-                          color: AppColors.accentGreen.withOpacity(0.7),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accentGreen.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_outlined,
+                        size: 50,
+                        color: AppColors.accentGreen.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Title
+                    Text(
+                      'No Transactions Yet',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Subtitle
+                    Text(
+                      'Start tracking your expenses and income\nto see your financial overview here',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Call to Action Button
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.of(context).pushNamed('/edit'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // Title
-                      Text(
-                        'No Transactions Yet',
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      label: const Text(
+                        'Add Your First Transaction',
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                          letterSpacing: -0.5,
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 8),
-
-                      // Subtitle
-                      Text(
-                        'Start tracking your expenses and income\nto see your financial overview here',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.black54,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Call to Action Button
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.accentGreen,
-                              AppColors.accentGreen.withOpacity(0.8),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentGreen.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: () => Navigator.of(context).pushNamed('/edit'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.add_circle_outline,
-                            color: Colors.white,
-                            size: 22,
-                          ),
-                          label: const Text(
-                            'Add Your First Transaction',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
+        ),
+      );
     } else {
       // Show simple message when user has transactions but none in selected period
       return FadeTransition(
@@ -927,7 +826,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           position: _slideAnimation,
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -936,13 +835,25 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     width: 70,
                     height: 70,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.accentGreen.withOpacity(0.1),
+                          AppColors.accentGreen.withOpacity(0.05),
+                        ],
+                      ),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accentGreen.withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
                     ),
                     child: Icon(
                       Icons.search_off,
                       size: 35,
-                      color: Colors.grey.withOpacity(0.6),
+                      color: AppColors.accentGreen.withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -951,10 +862,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   Text(
                     'No Transactions in This Period',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                      letterSpacing: -0.3,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -965,7 +875,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                       height: 1.4,
                     ),
                   ),
@@ -980,15 +890,17 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   /// 🧾 Grouped Transaction List by Date
   Widget _buildGroupedTransactionList(
-      List<TransactionItem> items,
-      String currencySymbol,
-      ) {
+    List<TransactionItem> items,
+    String currencySymbol,
+  ) {
     // Sort items by date descending
     items.sort((a, b) => b.date.compareTo(a.date));
 
     return ListView.builder(
-      shrinkWrap: true, // Allow ListView to size itself based on content
-      physics: const NeverScrollableScrollPhysics(), // Disable scrolling - parent handles it
+      shrinkWrap: true,
+      // Allow ListView to size itself based on content
+      physics: const NeverScrollableScrollPhysics(),
+      // Disable scrolling - parent handles it
       padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -1017,11 +929,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   ),
                 ),
                 SizedBox(width: 8),
-                Icon(
-                  Icons.delete,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                Icon(Icons.delete, color: Colors.white, size: 24),
               ],
             ),
           ),
@@ -1030,7 +938,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text('Delete Transaction'),
-                content: const Text('Are you sure you want to delete this transaction? This action cannot be undone.'),
+                content: const Text(
+                  'Are you sure you want to delete this transaction? This action cannot be undone.',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
@@ -1051,10 +961,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           },
           child: Card(
             margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-            elevation: 2,
+            elevation: 0,
             color: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: AppColors.border.withOpacity(0.4),
+                width: 1,
+              ),
             ),
             child: InkWell(
               onTap: () {
@@ -1073,13 +987,20 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     // Icon
                     Builder(
                       builder: (context) {
-                        final firestoreCategory = _getCategoryFromFirestore(t.category, t.type);
-                        final categoryColor = firestoreCategory?.color ?? _getCategoryFromString(t.category).color;
-                        final iconPath = firestoreCategory?.iconPath ?? _getIconPathFromCategoryName(t.category);
+                        final firestoreCategory = _getCategoryFromFirestore(
+                          t.category,
+                          t.type,
+                        );
+                        final categoryColor =
+                            firestoreCategory?.color ??
+                            _getCategoryFromString(t.category).color;
+                        final iconPath =
+                            firestoreCategory?.iconPath ??
+                            _getIconPathFromCategoryName(t.category);
 
                         return Container(
-                          height: 40,
-                          width: 40,
+                          height: 44,
+                          width: 44,
                           decoration: BoxDecoration(
                             color: categoryColor.withOpacity(0.15),
                             shape: BoxShape.circle,
@@ -1092,8 +1013,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                 categoryColor,
                                 BlendMode.srcIn,
                               ),
-                              width: 22,
-                              height: 22,
+                              width: 24,
+                              height: 24,
                             ),
                           ),
                         );
@@ -1108,10 +1029,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                         children: [
                           Text(
                             t.category,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
                             ),
                           ),
 
@@ -1119,9 +1040,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
                           Text(
                             t.title.isEmpty ? 'Not Specified' : t.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: Colors.black54,
+                              color: AppColors.textSecondary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1137,18 +1058,18 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                           '${t.type == TransactionType.income ? '+' : '-'} ${CurrencyFormatter.format(amount: t.amount, symbol: currencySymbol, decimalDigits: 2)}',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             color: t.type == TransactionType.income
-                                ? Colors.teal
-                                : Colors.redAccent,
+                                ? AppColors.accentGreen
+                                : AppColors.error,
                           ),
                         ),
 
                         Text(
                           DateFormat.yMMMd().format(t.date),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.black54,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -1162,6 +1083,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       },
     );
   }
+
   Widget _buildSummaryTile({
     required String label,
     required double amount,
@@ -1171,39 +1093,26 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     required String currency,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            backgroundColor.withOpacity(0.8),
-            backgroundColor,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: backgroundColor.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: backgroundColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: backgroundColor.withOpacity(0.3), width: 1.5),
       ),
       child: Row(
         children: [
-          // Arrow icon in circle
+          // Icon with background
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
+              color: backgroundColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: iconColor, size: 24),
+            child: Icon(icon, color: backgroundColor, size: 20),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
 
           // Label + Amount
-          // --- MODIFICATION START ---
-          // Use Flexible to allow the Column to shrink if needed.
           Flexible(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1212,12 +1121,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
                   ),
                 ),
-
+                const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
@@ -1226,22 +1135,477 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       symbol: currency,
                       decimalDigits: 1,
                     ),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: backgroundColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          // --- MODIFICATION END ---
         ],
       ),
     );
   }
 
+  String _getDateRangeText() {
+    final range = _currentRange();
+    return _getDateRangeTextForRange(range, _filter);
+  }
+
+  String _getDateRangeTextForRange(DateTimeRange range, PeriodFilter filter) {
+    final start = range.start;
+    final end = range.end;
+
+    switch (filter) {
+      case PeriodFilter.day:
+        return DateFormat('MMM d, yyyy').format(start);
+      case PeriodFilter.week:
+        if (start.year == end.year && start.month == end.month) {
+          return '${DateFormat('MMM d').format(start)} - ${DateFormat('d, yyyy').format(end)}';
+        } else if (start.year == end.year) {
+          return '${DateFormat('MMM d').format(start)} - ${DateFormat('MMM d, yyyy').format(end)}';
+        } else {
+          return '${DateFormat('MMM d, yyyy').format(start)} - ${DateFormat('MMM d, yyyy').format(end)}';
+        }
+      case PeriodFilter.month:
+        return DateFormat('MMM d').format(start) +
+            ' - ' +
+            DateFormat('d, yyyy').format(end);
+      case PeriodFilter.year:
+        return DateFormat('MMM d, yyyy').format(start) +
+            ' - ' +
+            DateFormat('MMM d, yyyy').format(end);
+      case PeriodFilter.custom:
+        if (start.year == end.year &&
+            start.month == end.month &&
+            start.day == end.day) {
+          return DateFormat('MMM d, yyyy').format(start);
+        } else if (start.year == end.year && start.month == end.month) {
+          return '${DateFormat('MMM d').format(start)} - ${DateFormat('d, yyyy').format(end)}';
+        } else if (start.year == end.year) {
+          return '${DateFormat('MMM d').format(start)} - ${DateFormat('MMM d, yyyy').format(end)}';
+        } else {
+          return '${DateFormat('MMM d, yyyy').format(start)} - ${DateFormat('MMM d, yyyy').format(end)}';
+        }
+    }
+  }
+
+  void _showFilterBottomSheet(BuildContext context) {
+    final accountProvider = context.read<AccountProvider>();
+    final accounts = accountProvider.accounts;
+
+    PeriodFilter tempFilter = _filter;
+    String? tempAccountId = _selectedAccountId;
+    DateTimeRange? tempCustomRange = _customRange;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGreen.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.tune,
+                        color: AppColors.accentGreen,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Filter Transactions',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Time Period Section
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: AppColors.accentGreen,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Time Period',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                StatefulBuilder(
+                  builder: (context, setState) {
+                    // Calculate date range for current selection
+                    DateTimeRange getTempRange() {
+                      final now = DateTime.now();
+                      switch (tempFilter) {
+                        case PeriodFilter.day:
+                          return DateTimeRange(
+                            start: _startOfDay(now),
+                            end: _endOfDay(now),
+                          );
+                        case PeriodFilter.week:
+                          final start = now.subtract(
+                            Duration(days: now.weekday - 1),
+                          );
+                          final end = start.add(const Duration(days: 6));
+                          return DateTimeRange(
+                            start: _startOfDay(start),
+                            end: _endOfDay(end),
+                          );
+                        case PeriodFilter.month:
+                          final start = DateTime(now.year, now.month, 1);
+                          final end = DateTime(now.year, now.month + 1, 0);
+                          return DateTimeRange(
+                            start: _startOfDay(start),
+                            end: _endOfDay(end),
+                          );
+                        case PeriodFilter.year:
+                          final start = DateTime(now.year, 1, 1);
+                          final end = DateTime(now.year, 12, 31);
+                          return DateTimeRange(
+                            start: _startOfDay(start),
+                            end: _endOfDay(end),
+                          );
+                        case PeriodFilter.custom:
+                          return tempCustomRange ??
+                              DateTimeRange(
+                                start: _startOfDay(now),
+                                end: _endOfDay(now),
+                              );
+                      }
+                    }
+
+                    final previewRange = getTempRange();
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            for (final period in [
+                              PeriodFilter.day,
+                              PeriodFilter.week,
+                              PeriodFilter.month,
+                              PeriodFilter.year,
+                              PeriodFilter.custom,
+                            ])
+                              InkWell(
+                                onTap: () async {
+                                  if (period == PeriodFilter.custom) {
+                                    final picked = await showDateRangePicker(
+                                      context: context,
+                                      firstDate: DateTime(2015),
+                                      lastDate: DateTime(2100),
+                                      initialDateRange:
+                                          tempCustomRange ?? _currentRange(),
+                                    );
+
+                                    if (picked != null) {
+                                      setState(() {
+                                        tempFilter = period;
+                                        tempCustomRange = DateTimeRange(
+                                          start: _startOfDay(picked.start),
+                                          end: _endOfDay(picked.end),
+                                        );
+                                      });
+                                    }
+                                  } else {
+                                    setState(() {
+                                      tempFilter = period;
+                                      tempCustomRange = null;
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tempFilter == period
+                                        ? AppColors.accentGreen.withOpacity(0.1)
+                                        : AppColors.backgroundScaffold,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: tempFilter == period
+                                          ? AppColors.accentGreen
+                                          : AppColors.border.withOpacity(0.5),
+                                      width: tempFilter == period ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _labelForFilter(period),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: tempFilter == period
+                                          ? AppColors.accentGreen
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12), // Date Preview
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.accentGreen.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.date_range,
+                                size: 16,
+                                color: AppColors.accentGreen,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _getDateRangeTextForRange(
+                                    previewRange,
+                                    tempFilter,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.accentGreen,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                if (accounts.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  // Account Section
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet,
+                        size: 18,
+                        color: AppColors.accentGreen,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Account',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  StatefulBuilder(
+                    builder: (context, setState) => Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        // All Accounts option
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              tempAccountId = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tempAccountId == null
+                                  ? AppColors.accentGreen.withOpacity(0.1)
+                                  : AppColors.backgroundScaffold,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: tempAccountId == null
+                                    ? AppColors.accentGreen
+                                    : AppColors.border.withOpacity(0.5),
+                                width: tempAccountId == null ? 2 : 1,
+                              ),
+                            ),
+                            child: Text(
+                              'All Accounts',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: tempAccountId == null
+                                    ? AppColors.accentGreen
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ), // Individual accounts
+                        for (final account in accounts)
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                tempAccountId = account.id;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tempAccountId == account.id
+                                    ? AppColors.accentGreen.withOpacity(0.1)
+                                    : AppColors.backgroundScaffold,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: tempAccountId == account.id
+                                      ? AppColors.accentGreen
+                                      : AppColors.border.withOpacity(0.5),
+                                  width: tempAccountId == account.id ? 2 : 1,
+                                ),
+                              ),
+                              child: Text(
+                                account.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: tempAccountId == account.id
+                                      ? AppColors.accentGreen
+                                      : AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 32),
+
+                // Apply Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _filter = tempFilter;
+                        _selectedAccountId = tempAccountId;
+                        _customRange = tempCustomRange;
+                      });
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentGreen,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Apply Filters',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Reset Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _filter = PeriodFilter.month;
+                        _selectedAccountId = null;
+                        _customRange = null;
+                      });
+                      Navigator.pop(context);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Reset to Default',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 Category? _getCategoryFromFirestore(String categoryName, TransactionType type) {
@@ -1264,7 +1628,7 @@ TransactionCategory _getCategoryFromString(String categoryName) {
   debugPrint('DEBUG: Received categoryName = "$categoryName"');
 
   return TransactionCategory.values.firstWhere(
-        (e) => e.displayName == categoryName,
+    (e) => e.displayName == categoryName,
     orElse: () {
       // This part only runs if no match was found above
       debugPrint('INFO: Match failed. Defaulting to "Others".');
@@ -1319,6 +1683,6 @@ String _labelForFilter(PeriodFilter filter) {
     case PeriodFilter.year:
       return 'Year';
     case PeriodFilter.custom:
-      return 'Period';
+      return 'Custom Period';
   }
 }

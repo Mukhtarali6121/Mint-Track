@@ -57,6 +57,7 @@ dependencies:
   package_info_plus: ^8.1.1
   upgrader: ^11.1.0
   http: ^1.1.0
+  share_plus: ^10.1.2
 
 dev_dependencies:
   flutter_test:

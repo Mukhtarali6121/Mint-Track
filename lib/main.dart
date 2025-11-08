@@ -106,6 +106,12 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.green,
+          colorScheme: ColorScheme.light(
+            primary: AppColors.accentGreen,
+            secondary: AppColors.accentGreen,
+            onPrimary: Colors.white,
+            onSecondary: Colors.white,
+          ),
           fontFamily: AppFonts.fontFamily,
           textTheme: const TextTheme(
             displayLarge: AppFonts.displayLarge,
@@ -137,6 +143,15 @@ class MyApp extends StatelessWidget {
           inputDecorationTheme: InputDecorationTheme(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.accentGreen, width: 2),
             ),
             labelStyle: AppFonts.inputLabel,
             hintStyle: AppFonts.inputHint,
