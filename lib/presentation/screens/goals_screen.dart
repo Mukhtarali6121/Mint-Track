@@ -6,8 +6,8 @@ import 'package:expense_tracker/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../goal_provider.dart';
-import '../../transaction_provider.dart';
+import '../../providers/goal_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../widgets/goal_completion_dialog.dart';
 
 class GoalsScreen extends StatefulWidget {

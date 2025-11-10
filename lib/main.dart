@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'common/currency_provider.dart';
-import 'goal_provider.dart';
+import 'providers/goal_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'common/local_storage.dart';
@@ -20,18 +20,18 @@ import 'common/hive_storage.dart';
 import 'common/transaction_hive_storage.dart';
 import 'common/account_hive_storage.dart';
 import 'common/account_migration.dart';
-import 'dashboard.dart';
-import 'edit_transaction.dart';
-import 'search_screen.dart';
+import 'presentation/screens/dashboard.dart';
+import 'presentation/screens/edit_transaction.dart';
+import 'presentation/screens/search_screen.dart';
 import 'presentation/screens/more_screen.dart';
 import 'presentation/screens/profile_details_screen.dart';
 import 'presentation/screens/terms_and_conditions_screen.dart';
 import 'presentation/screens/charts_screen.dart';
 import 'presentation/screens/accounts_screen.dart';
-import 'firebase_options.dart';
+import 'core/firebase_options.dart';
 // 1. IMPORT YOUR NEW PROVIDER
-import 'transaction_provider.dart';
-import 'account_provider.dart';
+import 'providers/transaction_provider.dart';
+import 'providers/account_provider.dart';
 import 'theme/app_fonts.dart';
 
 void main() async {

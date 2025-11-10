@@ -1,14 +1,14 @@
 import 'package:expense_tracker/common/currency_provider.dart';
 import 'package:expense_tracker/models/goal.dart';
-import 'package:expense_tracker/category_picker.dart';
+import 'package:expense_tracker/widgets/category_picker.dart';
 import 'package:expense_tracker/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../goal_provider.dart';
-import '../../account_provider.dart';
+import '../../providers/goal_provider.dart';
+import '../../providers/account_provider.dart';
 import '../../models.dart';
 
 class AddEditGoalScreen extends StatefulWidget {

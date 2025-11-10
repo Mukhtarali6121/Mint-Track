@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'models.dart';
 import 'models/dynamic_category.dart';
-import 'transaction_provider.dart';
+import 'providers/transaction_provider.dart';
 
 class AmountTile extends StatelessWidget {
   const AmountTile({super.key, required this.label, required this.amount, required this.color});

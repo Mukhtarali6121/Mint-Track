@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models.dart';
-import '../../transaction_provider.dart';
-import '../../account_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../../providers/account_provider.dart';
 import '../../widgets/pie_chart_widget.dart';
 import '../../widgets/bar_chart_widget.dart';
 import '../../widgets/line_chart_widget.dart';

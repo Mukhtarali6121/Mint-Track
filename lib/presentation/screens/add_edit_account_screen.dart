@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../../account_provider.dart';
-import '../../transaction_provider.dart';
+import '../../providers/account_provider.dart';
+import '../../providers/transaction_provider.dart';
 
 class AddEditAccountScreen extends StatefulWidget {
   const AddEditAccountScreen({super.key, this.existing});
