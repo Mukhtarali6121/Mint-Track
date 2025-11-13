@@ -13,12 +13,14 @@ import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'common/currency_provider.dart';
 import 'providers/goal_provider.dart';
+import 'providers/recurring_transaction_provider.dart';
 import 'package:provider/provider.dart';
 
 import 'common/local_storage.dart';
 import 'common/hive_storage.dart';
 import 'common/transaction_hive_storage.dart';
 import 'common/account_hive_storage.dart';
+import 'common/recurring_transaction_hive_storage.dart';
 import 'common/account_migration.dart';
 import 'presentation/screens/dashboard.dart';
 import 'presentation/screens/edit_transaction.dart';
@@ -28,6 +30,7 @@ import 'presentation/screens/profile_details_screen.dart';
 import 'presentation/screens/terms_and_conditions_screen.dart';
 import 'presentation/screens/charts_screen.dart';
 import 'presentation/screens/accounts_screen.dart';
+import 'presentation/screens/recurring_transactions_screen.dart';
 import 'core/firebase_options.dart';
 // 1. IMPORT YOUR NEW PROVIDER
 import 'providers/transaction_provider.dart';
@@ -55,7 +58,23 @@ void main() async {
   await HiveStorage.init();
   await TransactionHiveStorage.init(); // Adapter registers here safely
   await AccountHiveStorage.init(); // Initialize Account storage
+  await RecurringTransactionHiveStorage.init(); // Initialize Recurring Transaction storage
   await NotificationService().initialize();
+  
+  // Schedule daily notification at 9 PM (works even when app is killed)
+  // Request permissions first, then schedule
+  final notificationService = NotificationService();
+  final hasPermission = await notificationService.areNotificationsEnabled();
+  if (hasPermission) {
+    // If permission already granted, schedule immediately
+    await notificationService.scheduleDailyNotification();
+  } else {
+    // Request permission and schedule
+    final granted = await notificationService.requestPermissions();
+    if (granted) {
+      await notificationService.scheduleDailyNotification();
+    }
+  }
   
   // Run account migration if needed
   await AccountMigration.migrateToAccounts();
@@ -98,8 +117,9 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
         ChangeNotifierProvider(create: (_) => AccountProvider()),
-        ChangeNotifierProvider(create: (_) => CurrencyProvider()), // 3. ADD THE NEW CURRENCYPROVIDER
+        ChangeNotifierProvider(create: (_) => CurrencyProvider()),
         ChangeNotifierProvider(create: (_) => GoalProvider()),
+        ChangeNotifierProvider(create: (_) => RecurringTransactionProvider()),
       ],
       child: MaterialApp(
         title: 'Expense Tracker',
@@ -186,6 +206,7 @@ class MyApp extends StatelessWidget {
           '/accounts': (_) => const AccountsScreen(),
           '/labels': (_) => const PlaceholderScreen(title: 'Labels'),
           '/scheduled': (_) => const PlaceholderScreen(title: 'Scheduled Transactions'),
+          '/recurring': (_) => const RecurringTransactionsScreen(),
           '/currency': (_) => const PlaceholderScreen(title: 'Main Currency'),
           '/manual-wallets': (_) => const PlaceholderScreen(title: 'Manual Wallets'),
           '/bank-wallets': (_) => const PlaceholderScreen(title: 'Bank Accounts & E-Wallets'),

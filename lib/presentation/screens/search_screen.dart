@@ -32,7 +32,8 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends State<SearchScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _queryController = TextEditingController();
 
   TransactionType? _type; // null = all
@@ -41,6 +42,13 @@ class _SearchScreenState extends State<SearchScreen> {
   PeriodFilter? _period; // null = all transactions
   DateTimeRange? _customRange;
   SortOption _sortOption = SortOption.dateDesc;
+  
+  // Multi-select state
+  bool _isSelectionMode = false;
+  Set<String> _selectedTransactionIds = {};
+  
+  late AnimationController _deleteBarController;
+  Animation<double>? _deleteBarAnimation;
 
   @override
   void initState() {
@@ -48,11 +56,22 @@ class _SearchScreenState extends State<SearchScreen> {
     _period = widget.initialPeriod;
     _accountId = widget.initialAccountId;
     _customRange = widget.initialCustomRange;
+    
+    _deleteBarController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _deleteBarAnimation = CurvedAnimation(
+      parent: _deleteBarController,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   void dispose() {
     _queryController.dispose();
+    _deleteBarController.dispose();
     super.dispose();
   }
 
@@ -176,6 +195,64 @@ class _SearchScreenState extends State<SearchScreen> {
         );
       },
     );
+  }
+
+  Future<void> _deleteSelectedTransactions() async {
+    if (_selectedTransactionIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Delete Transactions'),
+        content: Text(
+          'Are you sure you want to delete ${_selectedTransactionIds.length} transaction${_selectedTransactionIds.length > 1 ? 's' : ''}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final provider = context.read<TransactionProvider>();
+      final count = _selectedTransactionIds.length;
+      final idsToDelete = Set<String>.from(_selectedTransactionIds);
+      
+      for (final id in idsToDelete) {
+        await provider.remove(id);
+      }
+      
+      _deleteBarController.reverse().then((_) {
+        if (mounted) {
+          setState(() {
+            _isSelectionMode = false;
+            _selectedTransactionIds.clear();
+          });
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$count transaction${count > 1 ? 's' : ''} deleted',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 
   void _exportTransactions(List<TransactionItem> transactions) async {
@@ -318,6 +395,152 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
 
+          // Sort By Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text(
+                  'Sort By:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 5,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: DropdownButtonFormField<SortOption>(
+                      value: _sortOption,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border.withOpacity(0.3)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.border.withOpacity(0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.accentGreen, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: [
+                        DropdownMenuItem(value: SortOption.dateDesc, child: Text('Date (Newest First)', style: TextStyle(fontSize: 14))),
+                        DropdownMenuItem(value: SortOption.dateAsc, child: Text('Date (Oldest First)', style: TextStyle(fontSize: 14))),
+                        DropdownMenuItem(value: SortOption.amountDesc, child: Text('Amount (High to Low)', style: TextStyle(fontSize: 14))),
+                        DropdownMenuItem(value: SortOption.amountAsc, child: Text('Amount (Low to High)', style: TextStyle(fontSize: 14))),
+                        DropdownMenuItem(value: SortOption.categoryAsc, child: Text('Category (A-Z)', style: TextStyle(fontSize: 14))),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _sortOption = v);
+                        }
+                      },
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Delete button when in selection mode
+          if (_isSelectionMode && _selectedTransactionIds.isNotEmpty && _deleteBarAnimation != null)
+            SizeTransition(
+              sizeFactor: _deleteBarAnimation!,
+              child: FadeTransition(
+                opacity: _deleteBarAnimation!,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, -1),
+                    end: Offset.zero,
+                  ).animate(_deleteBarAnimation!),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppColors.border.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${_selectedTransactionIds.length} selected',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () {
+                                _deleteBarController.reverse().then((_) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isSelectionMode = false;
+                                      _selectedTransactionIds.clear();
+                                    });
+                                  }
+                                });
+                              },
+                              icon: const Icon(Icons.close, size: 18),
+                              label: const Text('Cancel'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: () => _deleteSelectedTransactions(),
+                              icon: const Icon(Icons.delete, size: 18),
+                              label: const Text('Delete'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // Results Header with Count and Export
           Padding(
             padding: const EdgeInsets.all(16),
@@ -364,7 +587,42 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
                   )
-                : _ResultsList(items: results, currencySymbol: currencySymbol),
+                : _ResultsList(
+                    items: results,
+                    currencySymbol: currencySymbol,
+                    isSelectionMode: _isSelectionMode,
+                    selectedTransactionIds: _selectedTransactionIds,
+                    onSelectionModeChanged: (bool mode) {
+                      setState(() {
+                        _isSelectionMode = mode;
+                        if (mode) {
+                          _deleteBarController.forward();
+                        } else {
+                          _deleteBarController.reverse();
+                          _selectedTransactionIds.clear();
+                        }
+                      });
+                    },
+                    onTransactionToggled: (String id) {
+                      setState(() {
+                        if (_selectedTransactionIds.contains(id)) {
+                          _selectedTransactionIds.remove(id);
+                          if (_selectedTransactionIds.isEmpty) {
+                            _deleteBarController.reverse().then((_) {
+                              if (mounted) {
+                                setState(() {
+                                  _isSelectionMode = false;
+                                });
+                              }
+                            });
+                          }
+                        } else {
+                          _selectedTransactionIds.add(id);
+                        }
+                      });
+                    },
+                    onDeleteSelected: () => _deleteSelectedTransactions(),
+                  ),
           ),
         ],
       ),
@@ -381,10 +639,23 @@ enum SortOption {
 }
 
 class _ResultsList extends StatelessWidget {
-  const _ResultsList({required this.items, required this.currencySymbol});
+  const _ResultsList({
+    required this.items,
+    required this.currencySymbol,
+    required this.isSelectionMode,
+    required this.selectedTransactionIds,
+    required this.onSelectionModeChanged,
+    required this.onTransactionToggled,
+    required this.onDeleteSelected,
+  });
 
   final List<TransactionItem> items;
   final String currencySymbol;
+  final bool isSelectionMode;
+  final Set<String> selectedTransactionIds;
+  final ValueChanged<bool> onSelectionModeChanged;
+  final ValueChanged<String> onTransactionToggled;
+  final VoidCallback onDeleteSelected;
 
   Future<void> _deleteTransaction(BuildContext context, TransactionItem transaction) async {
     final confirmed = await showDialog<bool>(
@@ -422,10 +693,111 @@ class _ResultsList extends StatelessWidget {
         final firestoreCategory = _getCategoryFromFirestore(t.category, t.type);
         final categoryColor = firestoreCategory?.color ?? _getCategoryFromString(t.category).color;
         final iconPath = firestoreCategory?.iconPath ?? _getIconPathFromCategoryName(t.category);
+        final isSelected = selectedTransactionIds.contains(t.id);
 
         return StaggeredListAnimation(
           index: index,
-          child: Card(
+          child: isSelectionMode
+              ? Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 0,
+                  color: isSelected
+                      ? AppColors.accentGreen.withOpacity(0.1)
+                      : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.accentGreen
+                          : AppColors.border.withOpacity(0.4),
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: () => onTransactionToggled(t.id),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Checkbox instead of icon
+                          Container(
+                            height: 44,
+                            width: 44,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.accentGreen
+                                  : Colors.transparent,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.accentGreen
+                                    : AppColors.border,
+                                width: 2,
+                              ),
+                            ),
+                            child: isSelected
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 24,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.category,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  t.title.isEmpty ? 'Not Specified' : t.title,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${t.type == TransactionType.income ? '+' : '-'} ${CurrencyFormatter.format(amount: t.amount, symbol: currencySymbol, decimalDigits: 2)}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: t.type == TransactionType.income
+                                      ? AppColors.accentGreen
+                                      : AppColors.error,
+                                ),
+                              ),
+                              Text(
+                                DateFormat.yMMMd().format(t.date),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 0,
           color: Colors.white,
@@ -436,6 +808,11 @@ class _ResultsList extends StatelessWidget {
               width: 1,
             ),
           ),
+                  child: GestureDetector(
+                    onLongPress: () {
+                      onSelectionModeChanged(true);
+                      onTransactionToggled(t.id);
+                    },
           child: _AnimatedCard(
             onTap: () {
               Navigator.push(
@@ -520,51 +897,15 @@ class _ResultsList extends StatelessWidget {
                               : AppColors.error,
                         ),
                       ),
-            //           PopupMenuButton<String>(
-            //             icon: Icon(Icons.more_vert, size: 20, color: AppColors.textSecondary),
-            // onSelected: (value) async {
-            //   if (value == 'delete') {
-            //     await _deleteTransaction(context, t);
-            //               } else if (value == 'edit') {
-            //                 Navigator.push(
-            //                   context,
-            //                   MaterialPageRoute(
-            //                     builder: (context) => EditTransactionScreen(existing: t),
-            //                   ),
-            //                 );
-            //   }
-            // },
-            // itemBuilder: (context) => [
-            //               PopupMenuItem<String>(
-            //                 value: 'edit',
-            //                 child: Row(
-            //                   children: [
-            //                     Icon(Icons.edit, size: 18, color: AppColors.textPrimary),
-            //                     const SizedBox(width: 8),
-            //                     Text('Edit'),
-            //                   ],
-            //                 ),
-            //               ),
-            //               PopupMenuItem<String>(
-            //     value: 'delete',
-            //     child: Row(
-            //       children: [
-            //                     Icon(Icons.delete, size: 18, color: Colors.red),
-            //                     const SizedBox(width: 8),
-            //                     Text('Delete', style: TextStyle(color: Colors.red)),
-            //       ],
-            //     ),
-            //   ),
-            // ],
-            //           ),
-            //
                     ],
                   ),
                 ],
               ),
             ),
           ),
-        ));
+                  ),
+                ),
+        );
       },
     );
   }
@@ -752,38 +1093,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                         ...categories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c))).toList(),
                       ],
                       onChanged: (v) => setState(() => _category = v),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Sort Option
-                    Text('Sort By', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<SortOption>(
-                      value: _sortOption,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.accentGreen, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                      items: [
-                        DropdownMenuItem(value: SortOption.dateDesc, child: Text('Date (Newest First)')),
-                        DropdownMenuItem(value: SortOption.dateAsc, child: Text('Date (Oldest First)')),
-                        DropdownMenuItem(value: SortOption.amountDesc, child: Text('Amount (High to Low)')),
-                        DropdownMenuItem(value: SortOption.amountAsc, child: Text('Amount (Low to High)')),
-                        DropdownMenuItem(value: SortOption.categoryAsc, child: Text('Category (A-Z)')),
-                      ],
-                      onChanged: (v) => setState(() => _sortOption = v ?? SortOption.dateDesc),
                     ),
                     const SizedBox(height: 20),
                     

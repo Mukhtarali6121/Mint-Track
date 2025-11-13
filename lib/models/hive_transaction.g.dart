@@ -24,17 +24,18 @@ class HiveTransactionAdapter extends TypeAdapter<HiveTransaction> {
       date: fields[4] as DateTime,
       category: fields[5] as String,
       note: fields[6] as String?,
-      isSynced: fields[7] as bool,
+      isSynced: fields[7] as bool? ?? false,
       createdAt: fields[8] as DateTime,
       userId: fields[9] as String,
-      accountId: fields[10] as String,
+      accountId: fields[10] as String? ?? 'cash', // Handle null for old data
+      recurringTransactionId: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HiveTransaction obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class HiveTransactionAdapter extends TypeAdapter<HiveTransaction> {
       ..writeByte(9)
       ..write(obj.userId)
       ..writeByte(10)
-      ..write(obj.accountId);
+      ..write(obj.accountId)
+      ..writeByte(11)
+      ..write(obj.recurringTransactionId);
   }
 
   @override

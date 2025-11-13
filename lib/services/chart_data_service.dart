@@ -121,6 +121,58 @@ class ChartDataService {
     }
     return trendData;
   }
+
+  /// Get monthly comparison data (current month vs past months)
+  /// Returns data for the last N months including current month
+  static List<MonthlyComparisonData> getMonthlyComparison(
+    List<TransactionItem> transactions,
+    int numberOfMonths,
+  ) {
+    final now = DateTime.now();
+    final List<MonthlyComparisonData> comparisonData = [];
+
+    // Generate data for the last N months (including current month)
+    for (int i = numberOfMonths - 1; i >= 0; i--) {
+      // Calculate the month date properly handling year rollover
+      final targetMonth = now.month - i;
+      int year = now.year;
+      int month = targetMonth;
+      
+      // Handle negative months (previous year)
+      if (targetMonth <= 0) {
+        year = now.year - 1;
+        month = 12 + targetMonth;
+      }
+      
+      // Handle months > 12 (shouldn't happen with this logic, but just in case)
+      if (month > 12) {
+        year += 1;
+        month -= 12;
+      }
+
+      double income = 0;
+      double expense = 0;
+
+      for (final transaction in transactions) {
+        if (transaction.date.year == year && transaction.date.month == month) {
+          if (transaction.type == TransactionType.income) {
+            income += transaction.amount;
+          } else {
+            expense += transaction.amount;
+          }
+        }
+      }
+
+      comparisonData.add(MonthlyComparisonData(
+        year: year,
+        month: month,
+        income: income,
+        expense: expense,
+      ));
+    }
+
+    return comparisonData;
+  }
 }
 
 class MonthlyData {
@@ -136,4 +188,20 @@ class TrendData {
   final double amount;
 
   TrendData({required this.date, required this.amount});
+}
+
+class MonthlyComparisonData {
+  final int year;
+  final int month;
+  final double income;
+  final double expense;
+
+  MonthlyComparisonData({
+    required this.year,
+    required this.month,
+    this.income = 0,
+    this.expense = 0,
+  });
+
+  double get balance => income - expense;
 }

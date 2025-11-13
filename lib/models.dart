@@ -216,6 +216,7 @@ class TransactionItem {
     required this.category,
     this.note,
     this.accountId = 'cash',
+    this.recurringTransactionId,
   });
 
   final String id;
@@ -226,6 +227,7 @@ class TransactionItem {
   final String category;
   final String? note;
   final String accountId;
+  final String? recurringTransactionId; // ID of the recurring transaction that created this
 
   @override
   String toString() {
@@ -241,6 +243,7 @@ class TransactionItem {
     String? category,
     String? note,
     String? accountId,
+    String? recurringTransactionId,
   }) {
     return TransactionItem(
       id: id ?? this.id,
@@ -251,6 +254,7 @@ class TransactionItem {
       category: category ?? this.category,
       note: note ?? this.note,
       accountId: accountId ?? this.accountId,
+      recurringTransactionId: recurringTransactionId ?? this.recurringTransactionId,
     );
   }
 
@@ -263,6 +267,7 @@ class TransactionItem {
     'category': category,
     'note': note,
     'accountId': accountId,
+    'recurringTransactionId': recurringTransactionId,
   };
 
   factory TransactionItem.fromJson(Map<String, dynamic> json) {
@@ -278,6 +283,7 @@ class TransactionItem {
       category: json['category'] as String? ?? 'Others',
       note: json['note'] as String?,
       accountId: json['accountId'] as String? ?? 'cash',
+      recurringTransactionId: json['recurringTransactionId'] as String?,
     );
   }
 }

@@ -19,6 +19,7 @@ import '../../../providers/transaction_provider.dart';
 import '../../../services/data_cleanup_service.dart';
 import '../../../providers/account_provider.dart';
 import '../../../providers/goal_provider.dart';
+import '../../../providers/recurring_transaction_provider.dart';
 import '../../../models/account.dart';
 import '../../../common/account_hive_storage.dart';
 import '../../../common/account_migration.dart';
@@ -213,7 +214,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       final goalProvider = context.read<GoalProvider>();
       await goalProvider.loadGoalsFromFirestore();
 
-      // 3️⃣ Reset and reinitialize TransactionProvider
+      // 3️⃣ Fetch recurring transactions from Firestore
+      final recurringProvider = context.read<RecurringTransactionProvider>();
+      await recurringProvider.loadRecurringTransactionsFromFirestore();
+
+      // 4️⃣ Reset and reinitialize TransactionProvider
       if (mounted) {
         final transactionProvider = context.read<TransactionProvider>();
         await transactionProvider.resetAndInitialize();
@@ -225,6 +230,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         // Reset and initialize GoalProvider
         final goalProvider = context.read<GoalProvider>();
         await goalProvider.resetAndInitialize();
+        
+        // Reset and initialize RecurringTransactionProvider
+        final recurringProvider = context.read<RecurringTransactionProvider>();
+        await recurringProvider.resetAndInitialize();
         
         // Run migration if needed (will create Cash account if doesn't exist)
         await AccountMigration.migrateToAccounts();
@@ -369,6 +378,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         }
       }
 
+      // Fetch goals from Firestore
+      final goalProvider = context.read<GoalProvider>();
+      await goalProvider.loadGoalsFromFirestore();
+
+      // Fetch recurring transactions from Firestore
+      final recurringProvider = context.read<RecurringTransactionProvider>();
+      await recurringProvider.loadRecurringTransactionsFromFirestore();
+
       if (!mounted) return;
       
       // Reset and reinitialize TransactionProvider
@@ -380,9 +397,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       await accountProvider.resetAndInitialize();
       
       // Reset and initialize GoalProvider
-      final goalProvider = context.read<GoalProvider>();
       await goalProvider.resetAndInitialize();
-      await goalProvider.loadGoalsFromFirestore();
+      
+      // Reset and initialize RecurringTransactionProvider
+      await recurringProvider.resetAndInitialize();
       
       // Run migration if needed (will create Cash account if doesn't exist)
       await AccountMigration.migrateToAccounts();

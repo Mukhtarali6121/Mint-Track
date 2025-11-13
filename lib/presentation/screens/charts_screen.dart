@@ -6,6 +6,7 @@ import '../../providers/account_provider.dart';
 import '../../widgets/pie_chart_widget.dart';
 import '../../widgets/bar_chart_widget.dart';
 import '../../widgets/line_chart_widget.dart';
+import '../../widgets/monthly_comparison_chart_widget.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_fonts.dart';
 import '../../common/currency_provider.dart';
@@ -24,6 +25,7 @@ class _ChartsScreenState extends State<ChartsScreen>
   int _selectedYear = DateTime.now().year;
   bool _isExpenseView = true;
   String? _selectedAccountId; // null means "All Accounts"
+  int _numberOfMonths = 6; // For comparison chart
 
   @override
   void initState() {
@@ -223,13 +225,14 @@ class _ChartsScreenState extends State<ChartsScreen>
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          BarChartWidget(
+          MonthlyComparisonChartWidget(
             transactions: transactions,
-            selectedYear: _selectedYear,
             currencySymbol: currencySymbol,
+            numberOfMonths: _numberOfMonths,
           ),
           const SizedBox(height: 20),
-          _buildYearSelector(availableYears),
+          // Optional: Add a selector to change number of months
+          _buildMonthsSelector(),
         ],
       ),
     );
@@ -687,6 +690,83 @@ class _ChartsScreenState extends State<ChartsScreen>
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return months[month - 1];
+  }
+
+  Widget _buildMonthsSelector() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.9),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Compare Last N Months',
+            style: AppFonts.titleLarge.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            value: _numberOfMonths,
+            decoration: InputDecoration(
+              labelText: 'Number of Months',
+              labelStyle: AppFonts.inputLabel.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.accentGreen),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              filled: true,
+              fillColor: AppColors.backgroundScaffold,
+            ),
+            dropdownColor: AppColors.cardBackground,
+            items: [3, 6, 9, 12].map((months) {
+              return DropdownMenuItem(
+                value: months,
+                child: Text(
+                  '$months months',
+                  style: AppFonts.bodyMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _numberOfMonths = value;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAccountSelector(AccountProvider accountProvider) {

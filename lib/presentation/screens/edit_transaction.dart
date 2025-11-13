@@ -7,8 +7,10 @@ import 'package:provider/provider.dart';
 import '../../widgets/category_picker.dart';
 import '../../models.dart';
 import '../../models/dynamic_category.dart';
+import '../../models/recurring_transaction.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/account_provider.dart';
+import '../../providers/recurring_transaction_provider.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   const EditTransactionScreen({super.key, this.existing});
@@ -27,6 +29,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   TransactionType _type = TransactionType.expense;
   String _category = 'Others';
   String _selectedAccountId = 'cash';
+  bool _makeRecurring = false;
+  RecurringFrequency _recurringFrequency = RecurringFrequency.monthly;
+  bool _isSaving = false;
 
   String _getCategoryIconPath(String categoryName) {
     final dynamicCategory =
@@ -152,28 +157,158 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    final provider = context.read<TransactionProvider>();
-    final parsedAmount = double.parse(_amountController.text.trim());
-    final newItem = TransactionItem(
-      id: widget.existing?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleController.text.trim(),
-      amount: parsedAmount,
-      type: _type,
-      date: _date,
-      category: _category,
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
-      accountId: _selectedAccountId,
-    );
-    if (widget.existing == null) {
-      await provider.add(newItem);
-    } else {
-      await provider.update(newItem);
+    // Prevent multiple simultaneous saves
+    if (_isSaving) return;
+    
+    setState(() {
+      _isSaving = true;
+    });
+    
+    try {
+    // Validate amount
+    final amountText = _amountController.text.trim();
+    if (amountText.isEmpty) {
+        if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an amount'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+        }
+        setState(() {
+          _isSaving = false;
+        });
+      return;
     }
-    if (mounted) Navigator.of(context).pop();
+    
+    final parsedAmount = double.tryParse(amountText);
+    if (parsedAmount == null || parsedAmount <= 0) {
+        if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid amount'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+        }
+        setState(() {
+          _isSaving = false;
+        });
+      return;
+    }
+    
+    // Validate title if recurring is enabled
+    if (_makeRecurring && _titleController.text.trim().isEmpty) {
+        if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Title is required for recurring transactions'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+        }
+        setState(() {
+          _isSaving = false;
+        });
+      return;
+    }
+    
+      final provider = context.read<TransactionProvider>();
+      
+      // If make recurring is enabled, create recurring transaction first to get its ID
+      String? recurringTransactionId;
+      if (widget.existing == null && _makeRecurring) {
+        final recurringProvider = context.read<RecurringTransactionProvider>();
+        
+        // Create a temporary recurring transaction to calculate next occurrence
+        final tempRecurring = RecurringTransaction(
+          id: '',
+          title: '',
+          amount: 0,
+          type: 'expense',
+          frequency: _recurringFrequency,
+          startDate: _date,
+          endDate: null,
+          nextOccurrence: _date,
+          category: '',
+          accountId: '',
+          isActive: true,
+          autoApprove: true,
+          lastProcessedDate: null,
+          totalOccurrences: 0,
+          note: null,
+          createdAt: DateTime.now(),
+          userId: '',
+          isSynced: false,
+        );
+        
+        // Calculate the next occurrence date (not today, since we already created today's transaction)
+        final nextOccurrenceDate = tempRecurring.calculateNextOccurrence(_date);
+        final now = DateTime.now();
+        
+        final recurringTransaction = RecurringTransaction(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: _titleController.text.trim(),
+          amount: parsedAmount,
+          type: _type == TransactionType.expense ? 'expense' : 'income',
+          frequency: _recurringFrequency,
+          startDate: _date,
+          endDate: null,
+          nextOccurrence: nextOccurrenceDate, // Set to next occurrence, not today
+          category: _category,
+          accountId: _selectedAccountId,
+          isActive: true,
+          autoApprove: true, // Auto-approve recurring transactions created from edit transaction
+          lastProcessedDate: now, // Mark today as processed since we already created the transaction
+          totalOccurrences: 1, // We've already created the first occurrence
+          note: _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+          createdAt: DateTime.now(),
+          userId: '',
+          isSynced: false,
+        );
+        await recurringProvider.addRecurringTransaction(recurringTransaction);
+        recurringTransactionId = recurringTransaction.id;
+      }
+      
+      final newItem = TransactionItem(
+        id: widget.existing?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text.trim(),
+        amount: parsedAmount,
+        type: _type,
+        date: _date,
+        category: _category,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+        accountId: _selectedAccountId,
+        recurringTransactionId: recurringTransactionId, // Link to recurring transaction if created
+      );
+      if (widget.existing == null) {
+        await provider.add(newItem);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Transaction and recurring transaction created!'),
+              backgroundColor: AppColors.accentGreen,
+            ),
+          );
+        }
+      } else {
+        await provider.update(newItem);
+      }
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
   Future<void> _deleteTransaction() async {
@@ -359,13 +494,6 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                                         LengthLimitingTextInputFormatter(10),
                                       ],
-                                      validator: (v) {
-                                        final t = v?.trim() ?? '';
-                                        if (t.isEmpty) return 'Enter amount';
-                                        final d = double.tryParse(t);
-                                        if (d == null || d <= 0) return 'Enter valid amount';
-                                        return null;
-                                      },
                                     ),
                                   ),
                                 ],
@@ -389,16 +517,18 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                   child: TextFormField(
                                     controller: _titleController,
                                     textAlign: TextAlign.center,
-                                    decoration: const InputDecoration(
-                                      hintText: "Add Title",
+                                    decoration: InputDecoration(
+                                      hintText: _makeRecurring ? "Title (Required)" : "Add Title",
                                       hintStyle: TextStyle(
-                                        color: Colors.grey,
+                                        color: _makeRecurring 
+                                            ? Colors.orange.withOpacity(0.7)
+                                            : Colors.grey,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w400,
                                       ),
                                       border: InputBorder.none,
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                                     ),
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
@@ -458,21 +588,37 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                 },
                               ),
                             ),
+                            // Make Recurring Toggle (only for new transactions)
+                            if (widget.existing == null) ...[
+                              const SizedBox(height: 16),
+                              _buildRecurringToggle(),
+                            ],
                             const SizedBox(height: 20),
                             // Save Button
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: _save,
+                                onPressed: _isSaving ? null : _save,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accentGreen,
+                                  backgroundColor: _isSaving 
+                                      ? AppColors.accentGreen.withOpacity(0.6)
+                                      : AppColors.accentGreen,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(40),
                                   ),
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                 ),
-                                child: Text(
+                                child: _isSaving
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Text(
                                   titleText,
                                   style: const TextStyle(
                                     fontSize: 16,
@@ -600,5 +746,142 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         ],
       ),
     );
+  }
+
+  // 🔸 Recurring Transaction Toggle
+  Widget _buildRecurringToggle() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: EdgeInsets.all(_makeRecurring ? 16 : 12),
+      decoration: BoxDecoration(
+        color: _makeRecurring 
+            ? AppColors.accentGreen.withOpacity(0.1)
+            : AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _makeRecurring 
+              ? AppColors.accentGreen.withOpacity(0.3)
+              : Colors.transparent,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textPrimary.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.repeat,
+                    color: _makeRecurring 
+                        ? AppColors.accentGreen 
+                        : AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Make this recurring',
+                    style: TextStyle(
+                      color: _makeRecurring 
+                          ? AppColors.accentGreen 
+                          : AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              Switch(
+                value: _makeRecurring,
+                onChanged: (value) {
+                  setState(() {
+                    _makeRecurring = value;
+                  });
+                },
+                activeColor: AppColors.accentGreen,
+              ),
+            ],
+          ),
+          if (_makeRecurring) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Frequency',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: RecurringFrequency.values.map((frequency) {
+                final isSelected = _recurringFrequency == frequency;
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _recurringFrequency = frequency;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.accentGreen
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.accentGreen
+                            : AppColors.textSecondary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      _getFrequencyLabel(frequency),
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _getFrequencyLabel(RecurringFrequency frequency) {
+    switch (frequency) {
+      case RecurringFrequency.daily:
+        return 'Daily';
+      case RecurringFrequency.weekly:
+        return 'Weekly';
+      case RecurringFrequency.monthly:
+        return 'Monthly';
+      case RecurringFrequency.quarterly:
+        return 'Quarterly';
+      case RecurringFrequency.yearly:
+        return 'Yearly';
+    }
   }
 }

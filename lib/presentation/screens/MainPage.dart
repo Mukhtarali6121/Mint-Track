@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/goal_provider.dart';
+import '../../providers/recurring_transaction_provider.dart';
 import '../../common/animation_utils.dart';
 
 import '../../theme/app_colors.dart';
@@ -37,6 +38,7 @@ class _MainPageWidgetState extends State<MainPageWidget> with SingleTickerProvid
       context.read<TransactionProvider>().initialize();
       context.read<AccountProvider>().initialize();
       context.read<GoalProvider>().initialize();
+      context.read<RecurringTransactionProvider>().initialize();
     });
   }
 

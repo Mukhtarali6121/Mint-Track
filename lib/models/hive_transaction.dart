@@ -38,6 +38,9 @@ class HiveTransaction extends HiveObject {
   @HiveField(10)
   String accountId;
 
+  @HiveField(11)
+  String? recurringTransactionId; // ID of the recurring transaction that created this
+
   HiveTransaction({
     required this.id,
     required this.title,
@@ -50,6 +53,7 @@ class HiveTransaction extends HiveObject {
     required this.createdAt,
     required this.userId,
     this.accountId = 'cash',
+    this.recurringTransactionId,
   });
 
   // Convert from TransactionItem to HiveTransaction
@@ -68,6 +72,7 @@ class HiveTransaction extends HiveObject {
           : DateTime.now(),
       userId: userId,
       accountId: data['accountId'] as String? ?? 'cash',
+      recurringTransactionId: data['recurringTransactionId'] as String?,
     );
   }
 
@@ -85,6 +90,7 @@ class HiveTransaction extends HiveObject {
       'createdAt': Timestamp.fromDate(createdAt),
       'userId': userId,
       'accountId': accountId,
+      'recurringTransactionId': recurringTransactionId,
     };
   }
 
@@ -99,6 +105,7 @@ class HiveTransaction extends HiveObject {
       'category': category,
       'note': note,
       'accountId': accountId,
+      'recurringTransactionId': recurringTransactionId,
     };
   }
 
@@ -116,6 +123,7 @@ class HiveTransaction extends HiveObject {
       createdAt: DateTime.now(),
       userId: userId,
       accountId: data['accountId'] as String? ?? 'cash',
+      recurringTransactionId: data['recurringTransactionId'] as String?,
     );
   }
 
@@ -131,6 +139,7 @@ class HiveTransaction extends HiveObject {
     DateTime? createdAt,
     String? userId,
     String? accountId,
+    String? recurringTransactionId,
   }) {
     return HiveTransaction(
       id: id ?? this.id,
@@ -144,6 +153,7 @@ class HiveTransaction extends HiveObject {
       createdAt: createdAt ?? this.createdAt,
       userId: userId ?? this.userId,
       accountId: accountId ?? this.accountId,
+      recurringTransactionId: recurringTransactionId ?? this.recurringTransactionId,
     );
   }
 }

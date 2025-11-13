@@ -106,13 +106,11 @@ class AccountProvider extends ChangeNotifier {
   Future<bool> syncAccountsToFirestore() async {
     try {
       final unsyncedAccounts = getUnsyncedAccounts();
-      if (unsyncedAccounts.isEmpty) {
-        return true; // Nothing to sync
-      }
-
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
+      // 1. Sync unsynced accounts (new/updated)
+      if (unsyncedAccounts.isNotEmpty) {
       for (final account in unsyncedAccounts) {
         await firestore
             .collection('accounts')
@@ -124,6 +122,10 @@ class AccountProvider extends ChangeNotifier {
         // Mark as synced in Hive
         await AccountHiveStorage.markAsSynced(account.id);
       }
+      }
+
+      // 2. Sync deletions - delete accounts from Firestore that don't exist locally
+      await _syncAccountDeletions();
 
       // Refresh local data
       await _loadFromHive();
@@ -133,6 +135,51 @@ class AccountProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error syncing accounts: $e');
       return false;
+    }
+  }
+
+  /// Sync deletions: Delete accounts from Firestore that don't exist locally
+  Future<void> _syncAccountDeletions() async {
+    try {
+      final userId = _getUserId();
+      final firestore = FirebaseFirestore.instance;
+
+      // Get all local account IDs (excluding cash which shouldn't be deleted)
+      final localAccounts = AccountHiveStorage.getAllAccounts();
+      final localAccountIds = localAccounts.map((a) => a.id).toSet();
+
+      // Get all account IDs from Firestore
+      final firestoreSnapshot = await firestore
+          .collection('accounts')
+          .doc(userId)
+          .collection('userAccounts')
+          .get();
+
+      // Find accounts in Firestore that don't exist locally
+      final accountsToDelete = <String>[];
+      for (final doc in firestoreSnapshot.docs) {
+        // Don't delete cash account even if it's missing locally
+        if (doc.id != 'cash' && !localAccountIds.contains(doc.id)) {
+          accountsToDelete.add(doc.id);
+        }
+      }
+
+      // Delete orphaned accounts from Firestore
+      for (final accountId in accountsToDelete) {
+        await firestore
+            .collection('accounts')
+            .doc(userId)
+            .collection('userAccounts')
+            .doc(accountId)
+            .delete();
+        debugPrint('Deleted account $accountId from Firestore');
+      }
+
+      if (accountsToDelete.isNotEmpty) {
+        debugPrint('Synced ${accountsToDelete.length} account deletion(s) to Firestore');
+      }
+    } catch (e) {
+      debugPrint('Error syncing account deletions: $e');
     }
   }
 

@@ -23,6 +23,9 @@ import '../../services/notification_service.dart';
 import '../../services/update_check_service.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/goals_widget.dart';
+import '../../widgets/recurring_transactions_widget.dart';
+import '../../providers/recurring_transaction_provider.dart';
+import '../../services/recurring_transaction_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -38,10 +41,16 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _isSyncing = false;
   String? _selectedAccountId; // null means "All Accounts"
 
+  // Multi-select state
+  bool _isSelectionMode = false;
+  Set<String> _selectedTransactionIds = {};
+
   late AnimationController _fadeController;
   late AnimationController _slideController;
+  late AnimationController _deleteBarController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  Animation<double>? _deleteBarAnimation;
 
   DateTimeRange _currentRange() {
     final now = DateTime.now();
@@ -95,6 +104,16 @@ class _DashboardScreenState extends State<DashboardScreen>
           CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
         );
 
+    _deleteBarController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _deleteBarAnimation = CurvedAnimation(
+      parent: _deleteBarController,
+      curve: Curves.easeOutCubic,
+        );
+
     _fadeController.forward();
     _slideController.forward();
 
@@ -103,6 +122,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Check for app updates
     _checkForUpdates();
+
+    // Check and process recurring transactions
+    _checkRecurringTransactions();
   }
 
   /// Check for app updates from Play Store
@@ -232,11 +254,98 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  /// Check and process recurring transactions
+  Future<void> _checkRecurringTransactions() async {
+    try {
+      // Wait a bit to ensure providers are initialized
+      await Future.delayed(const Duration(seconds: 1));
+      
+      if (!mounted) return;
+
+      final recurringProvider = context.read<RecurringTransactionProvider>();
+      final transactionProvider = context.read<TransactionProvider>();
+
+      // Initialize recurring provider if needed
+      if (!recurringProvider.isInitialized) {
+        await recurringProvider.initialize();
+      }
+
+      // Check and process recurring transactions
+      final recurringService = RecurringTransactionService();
+      await recurringService.checkAndProcessRecurringTransactions(
+        recurringProvider,
+        transactionProvider,
+      );
+    } catch (e) {
+      debugPrint('Error checking recurring transactions: $e');
+    }
+  }
+
+
   @override
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
+    _deleteBarController.dispose();
     super.dispose();
+  }
+
+  Future<void> _deleteSelectedTransactions() async {
+    if (_selectedTransactionIds.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Delete Transactions'),
+        content: Text(
+          'Are you sure you want to delete ${_selectedTransactionIds.length} transaction${_selectedTransactionIds.length > 1 ? 's' : ''}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final provider = context.read<TransactionProvider>();
+      final count = _selectedTransactionIds.length;
+      final idsToDelete = Set<String>.from(_selectedTransactionIds);
+      
+      for (final id in idsToDelete) {
+        await provider.remove(id);
+      }
+      
+      _deleteBarController.reverse().then((_) {
+        if (mounted) {
+          setState(() {
+            _isSelectionMode = false;
+            _selectedTransactionIds.clear();
+          });
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$count transaction${count > 1 ? 's' : ''} deleted',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _syncTransactions() async {
@@ -370,7 +479,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16.0,0.0,16.0,16.0),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Column(
@@ -469,6 +578,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ),
 
+                      // Recurring Transactions Widget
+                      Consumer<RecurringTransactionProvider>(
+                        builder: (context, recurringProvider, _) {
+                          final pendingRecurring = recurringProvider.getDueRecurringTransactions()
+                              .where((recurring) => !recurring.autoApprove)
+                              .toList();
+                          final activeRecurring = recurringProvider.getActiveRecurringTransactions()
+                              .take(3)
+                              .toList();
+                          
+                          if (pendingRecurring.isEmpty && activeRecurring.isEmpty) {
+                            return const SizedBox(height: 16);
+                          }
+                          return const RecurringTransactionsWidget();
+                        },
+                      ),
+
                       // Goals Widget
                       if (FeatureFlags.goalsFeatureEnabled) ...[
                         const GoalsWidget(),
@@ -522,11 +648,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       //   },
                       // ),
                       // Recent Transactions Header with Search and Filter (only show if transactions exist)
-                      const SizedBox(height: 16),
 
                       if (allTransactions.isNotEmpty) ...[
                         Container(
-                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
@@ -538,6 +662,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                               ),
                             ],
                           ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header and Search/Filter Section
+                              Padding(
+                                padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -643,13 +773,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 12), // Filter Button
+                                  const SizedBox(width: 8), // Filter Button
                                   InkWell(
                                     onTap: () =>
                                         _showFilterBottomSheet(context),
                                     child: Container(
-                                      height: 44,
-                                      width: 44,
+                                      height: 40,
+                                      width: 40,
                                       decoration: BoxDecoration(
                                         color: AppColors.backgroundScaffold,
                                         borderRadius: BorderRadius.circular(14),
@@ -672,13 +802,96 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Transaction List (no longer Expanded, just part of scrollable content)
+                              // Delete button when in selection mode
+                              if (_isSelectionMode && _selectedTransactionIds.isNotEmpty && _deleteBarAnimation != null)
+                                SizeTransition(
+                                  sizeFactor: _deleteBarAnimation!,
+                                  child: FadeTransition(
+                                    opacity: _deleteBarAnimation!,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0, -1),
+                                        end: Offset.zero,
+                                      ).animate(_deleteBarAnimation!),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.1),
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: AppColors.border.withOpacity(0.2),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '${_selectedTransactionIds.length} selected',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            Row(
+                                              children: [
+                                                TextButton.icon(
+                                                  onPressed: () {
+                                                    _deleteBarController.reverse().then((_) {
+                                                      if (mounted) {
+                                                        setState(() {
+                                                          _isSelectionMode = false;
+                                                          _selectedTransactionIds.clear();
+                                                        });
+                                                      }
+                                                    });
+                                                  },
+                                                  icon: const Icon(Icons.close, size: 18),
+                                                  label: const Text('Cancel'),
+                                                  style: TextButton.styleFrom(
+                                                    foregroundColor: AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                ElevatedButton.icon(
+                                                  onPressed: () => _deleteSelectedTransactions(),
+                                                  icon: const Icon(Icons.delete, size: 18),
+                                                  label: const Text('Delete'),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red,
+                                                    foregroundColor: Colors.white,
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 8,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              // Transaction List inside the same white container
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                child: items.isEmpty
+                                    ? _buildEmptyState(allTransactions.isEmpty)
+                                    : _buildGroupedTransactionList(items, currencySymbol),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        // Show empty state when no transactions exist
                       items.isEmpty
                           ? _buildEmptyState(allTransactions.isEmpty)
                           : _buildGroupedTransactionList(items, currencySymbol),
+                      ],
 
                       const SizedBox(height: 80),
                       // Extra padding at bottom for FAB
@@ -915,9 +1128,128 @@ class _DashboardScreenState extends State<DashboardScreen>
       itemBuilder: (context, index) {
         final t = items[index];
 
+        final isSelected = _selectedTransactionIds.contains(t.id);
+
         return StaggeredListAnimation(
           index: index,
-          child: Dismissible(
+          child: _isSelectionMode
+              ? Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+                  elevation: 0,
+                  color: isSelected
+                      ? AppColors.accentGreen.withOpacity(0.1)
+                      : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.accentGreen
+                          : AppColors.border.withOpacity(0.4),
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedTransactionIds.remove(t.id);
+                          if (_selectedTransactionIds.isEmpty) {
+                            _deleteBarController.reverse().then((_) {
+                              if (mounted) {
+                                setState(() {
+                                  _isSelectionMode = false;
+                                });
+                              }
+                            });
+                          }
+                        } else {
+                          _selectedTransactionIds.add(t.id);
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        children: [
+                          // Checkbox instead of icon
+                          Container(
+                            height: 40,
+                            width: 40,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.accentGreen
+                                  : Colors.transparent,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.accentGreen
+                                    : AppColors.border,
+                                width: 2,
+                              ),
+                            ),
+                            child: isSelected
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 24,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.category,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  t.title.isEmpty ? 'Not Specified' : t.title,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${t.type == TransactionType.income ? '+' : '-'} ${CurrencyFormatter.format(amount: t.amount, symbol: currencySymbol, decimalDigits: 2)}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: t.type == TransactionType.income
+                                      ? AppColors.accentGreen
+                                      : AppColors.error,
+                                ),
+                              ),
+                              Text(
+                                DateFormat.yMMMd().format(t.date),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : Dismissible(
             key: Key(t.id),
             direction: DismissDirection.endToStart,
             background: AnimatedContainer(
@@ -1001,18 +1333,45 @@ class _DashboardScreenState extends State<DashboardScreen>
                 width: 1,
               ),
             ),
+            child: GestureDetector(
+              onLongPress: () {
+                setState(() {
+                  _isSelectionMode = true;
+                  _selectedTransactionIds.add(t.id);
+                });
+                _deleteBarController.forward();
+              },
             child: _AnimatedCard(
               onTap: () {
+                      if (_isSelectionMode) {
+                    setState(() {
+                      if (_selectedTransactionIds.contains(t.id)) {
+                        _selectedTransactionIds.remove(t.id);
+                        if (_selectedTransactionIds.isEmpty) {
+                          _deleteBarController.reverse().then((_) {
+                            if (mounted) {
+                              setState(() {
+                                _isSelectionMode = false;
+                              });
+                            }
+                          });
+                        }
+                      } else {
+                        _selectedTransactionIds.add(t.id);
+                      }
+                    });
+                  } else {
                 Navigator.push(
                   context,
                   CustomPageRoute(
                     child: EditTransactionScreen(existing: t),
                   ),
                 );
+                  }
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(10),
                 child: Row(
                   children: [
                     // Icon
@@ -1032,8 +1391,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         return Hero(
                           tag: 'transaction_icon_${t.id}',
                           child: Container(
-                            height: 44,
-                            width: 44,
+                            height: 40,
+                            width: 40,
                             decoration: BoxDecoration(
                               color: categoryColor.withOpacity(0.15),
                               shape: BoxShape.circle,
@@ -1054,7 +1413,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         );
                       },
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 10),
 
                     // Title, Category + Date
                     Expanded(
@@ -1113,7 +1472,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
           ),
-        ));
+        )));
       },
     );
   }

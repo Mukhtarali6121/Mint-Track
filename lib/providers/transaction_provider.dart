@@ -39,6 +39,7 @@ class TransactionProvider extends ChangeNotifier {
         category: hiveTransaction.category,
         note: hiveTransaction.note,
         accountId: hiveTransaction.accountId,
+        recurringTransactionId: hiveTransaction.recurringTransactionId,
       );
       _items.add(transactionItem);
     }
@@ -108,6 +109,7 @@ class TransactionProvider extends ChangeNotifier {
         category: hiveTransaction.category,
         note: hiveTransaction.note,
         accountId: hiveTransaction.accountId,
+        recurringTransactionId: hiveTransaction.recurringTransactionId,
       );
       filteredItems.add(transactionItem);
     }
@@ -168,13 +170,11 @@ class TransactionProvider extends ChangeNotifier {
   Future<bool> syncTransactionsToFirestore() async {
     try {
       final unsyncedTransactions = getUnsyncedTransactions();
-      if (unsyncedTransactions.isEmpty) {
-        return true; // Nothing to sync
-      }
-
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
+      // 1. Sync unsynced transactions (new/updated)
+      if (unsyncedTransactions.isNotEmpty) {
       for (final transaction in unsyncedTransactions) {
         await firestore
             .collection('transactions')
@@ -186,6 +186,10 @@ class TransactionProvider extends ChangeNotifier {
         // Mark as synced in Hive
         await TransactionHiveStorage.markAsSynced(transaction.id);
       }
+      }
+
+      // 2. Sync deletions - delete transactions from Firestore that don't exist locally
+      await _syncTransactionDeletions();
 
       // Refresh local data
       await _loadFromHive();
@@ -195,6 +199,50 @@ class TransactionProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error syncing transactions: $e');
       return false;
+    }
+  }
+
+  /// Sync deletions: Delete transactions from Firestore that don't exist locally
+  Future<void> _syncTransactionDeletions() async {
+    try {
+      final userId = _getUserId();
+      final firestore = FirebaseFirestore.instance;
+
+      // Get all local transaction IDs
+      final localTransactions = TransactionHiveStorage.getAllTransactions();
+      final localTransactionIds = localTransactions.map((t) => t.id).toSet();
+
+      // Get all transaction IDs from Firestore
+      final firestoreSnapshot = await firestore
+          .collection('transactions')
+          .doc(userId)
+          .collection('userTransactions')
+          .get();
+
+      // Find transactions in Firestore that don't exist locally
+      final transactionsToDelete = <String>[];
+      for (final doc in firestoreSnapshot.docs) {
+        if (!localTransactionIds.contains(doc.id)) {
+          transactionsToDelete.add(doc.id);
+        }
+      }
+
+      // Delete orphaned transactions from Firestore
+      for (final transactionId in transactionsToDelete) {
+        await firestore
+            .collection('transactions')
+            .doc(userId)
+            .collection('userTransactions')
+            .doc(transactionId)
+            .delete();
+        debugPrint('Deleted transaction $transactionId from Firestore');
+      }
+
+      if (transactionsToDelete.isNotEmpty) {
+        debugPrint('Synced ${transactionsToDelete.length} transaction deletion(s) to Firestore');
+      }
+    } catch (e) {
+      debugPrint('Error syncing transaction deletions: $e');
     }
   }
 

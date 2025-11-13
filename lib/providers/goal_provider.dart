@@ -202,13 +202,11 @@ class GoalProvider extends ChangeNotifier {
   Future<bool> syncGoalsToFirestore() async {
     try {
       final unsyncedGoals = getUnsyncedGoals();
-      if (unsyncedGoals.isEmpty) {
-        return true; // Nothing to sync
-      }
-
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
+      // 1. Sync unsynced goals (new/updated)
+      if (unsyncedGoals.isNotEmpty) {
       for (final goal in unsyncedGoals) {
         await firestore
             .collection('goals')
@@ -220,6 +218,10 @@ class GoalProvider extends ChangeNotifier {
         // Mark as synced in Hive
         await GoalHiveStorage.markAsSynced(goal.id);
       }
+      }
+
+      // 2. Sync deletions - delete goals from Firestore that don't exist locally
+      await _syncGoalDeletions();
 
       // Refresh local data
       await _loadFromHive();
@@ -229,6 +231,50 @@ class GoalProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error syncing goals: $e');
       return false;
+    }
+  }
+
+  /// Sync deletions: Delete goals from Firestore that don't exist locally
+  Future<void> _syncGoalDeletions() async {
+    try {
+      final userId = _getUserId();
+      final firestore = FirebaseFirestore.instance;
+
+      // Get all local goal IDs
+      final localGoals = GoalHiveStorage.getAllGoals();
+      final localGoalIds = localGoals.map((g) => g.id).toSet();
+
+      // Get all goal IDs from Firestore
+      final firestoreSnapshot = await firestore
+          .collection('goals')
+          .doc(userId)
+          .collection('userGoals')
+          .get();
+
+      // Find goals in Firestore that don't exist locally
+      final goalsToDelete = <String>[];
+      for (final doc in firestoreSnapshot.docs) {
+        if (!localGoalIds.contains(doc.id)) {
+          goalsToDelete.add(doc.id);
+        }
+      }
+
+      // Delete orphaned goals from Firestore
+      for (final goalId in goalsToDelete) {
+        await firestore
+            .collection('goals')
+            .doc(userId)
+            .collection('userGoals')
+            .doc(goalId)
+            .delete();
+        debugPrint('Deleted goal $goalId from Firestore');
+      }
+
+      if (goalsToDelete.isNotEmpty) {
+        debugPrint('Synced ${goalsToDelete.length} goal deletion(s) to Firestore');
+      }
+    } catch (e) {
+      debugPrint('Error syncing goal deletions: $e');
     }
   }
 
