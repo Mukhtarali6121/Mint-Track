@@ -8,6 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/recurring_transaction_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/premium_provider.dart';
+import '../../common/premium_constants.dart';
+import 'premium_upgrade_screen.dart';
 
 class RecurringTransactionsScreen extends StatefulWidget {
   const RecurringTransactionsScreen({super.key});
@@ -142,17 +145,87 @@ class _RecurringTransactionsScreenState extends State<RecurringTransactionsScree
           _buildInactiveTab(currencySymbol),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddEditRecurringTransactionScreen(),
-            ),
+      floatingActionButton: Consumer<PremiumProvider>(
+        builder: (context, premiumProvider, _) {
+          final recurringProvider = context.watch<RecurringTransactionProvider>();
+          final canAdd = recurringProvider.canAddRecurringTransaction();
+          final recurringCount = recurringProvider.getRecurringTransactionCount();
+          final isPremium = premiumProvider.isPremium;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Show recurring transaction limit indicator for free users
+              if (!isPremium)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: canAdd ? Colors.blue.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: canAdd ? Colors.blue.shade200 : Colors.orange.shade300,
+                    ),
+                  ),
+                  child: Text(
+                    '$recurringCount/${PremiumConstants.FREE_MAX_RECURRING_TRANSACTIONS} recurring',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: canAdd ? Colors.blue.shade700 : Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+              FloatingActionButton(
+                onPressed: canAdd
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AddEditRecurringTransactionScreen(),
+                          ),
+                        );
+                      }
+                    : () {
+                        // Show upgrade prompt
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Recurring Transaction Limit Reached'),
+                            content: Text(
+                              'You have reached the limit of ${PremiumConstants.FREE_MAX_RECURRING_TRANSACTIONS} recurring transactions. Upgrade to Premium for unlimited recurring transactions.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PremiumUpgradeScreen(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accentGreen,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Upgrade'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                backgroundColor: canAdd ? AppColors.accentGreen : Colors.grey,
+                child: const Icon(Icons.add),
+              ),
+            ],
           );
         },
-        backgroundColor: AppColors.accentGreen,
-        child: const Icon(Icons.add),
       ),
     );
   }

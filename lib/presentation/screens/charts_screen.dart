@@ -10,6 +10,8 @@ import '../../widgets/monthly_comparison_chart_widget.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_fonts.dart';
 import '../../common/currency_provider.dart';
+import '../../providers/premium_provider.dart';
+import 'premium_upgrade_screen.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -221,39 +223,180 @@ class _ChartsScreenState extends State<ChartsScreen>
   }
 
   Widget _buildBarChartTab(List<TransactionItem> transactions, String currencySymbol, List<int> availableYears) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          MonthlyComparisonChartWidget(
-            transactions: transactions,
-            currencySymbol: currencySymbol,
-            numberOfMonths: _numberOfMonths,
+    return Consumer<PremiumProvider>(
+      builder: (context, premiumProvider, _) {
+        if (!premiumProvider.isPremium) {
+          return _buildPremiumLockedContent('Monthly Comparison', 'Compare your spending across multiple months with advanced analytics');
+        }
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              MonthlyComparisonChartWidget(
+                transactions: transactions,
+                currencySymbol: currencySymbol,
+                numberOfMonths: _numberOfMonths,
+              ),
+              const SizedBox(height: 20),
+              // Optional: Add a selector to change number of months
+              _buildMonthsSelector(),
+            ],
           ),
-          const SizedBox(height: 20),
-          // Optional: Add a selector to change number of months
-          _buildMonthsSelector(),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildLineChartTab(List<TransactionItem> transactions, String currencySymbol, List<int> availableYears, List<int> availableMonths) {
-    final startDate = DateTime(_selectedYear, _selectedMonth.month, 1);
-    final endDate = DateTime(_selectedYear, _selectedMonth.month + 1, 0);
+    return Consumer<PremiumProvider>(
+      builder: (context, premiumProvider, _) {
+        if (!premiumProvider.isPremium) {
+          return _buildPremiumLockedContent('Trend Analysis', 'Track your spending trends over time with detailed line charts');
+        }
+        final startDate = DateTime(_selectedYear, _selectedMonth.month, 1);
+        final endDate = DateTime(_selectedYear, _selectedMonth.month + 1, 0);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          LineChartWidget(
-            transactions: transactions,
-            startDate: startDate,
-            endDate: endDate,
-            currencySymbol: currencySymbol,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              LineChartWidget(
+                transactions: transactions,
+                startDate: startDate,
+                endDate: endDate,
+                currencySymbol: currencySymbol,
+              ),
+              const SizedBox(height: 20),
+              _buildDateRangeSelector(availableYears, availableMonths),
+            ],
           ),
-          const SizedBox(height: 20),
-          _buildDateRangeSelector(availableYears, availableMonths),
+        );
+      },
+    );
+  }
+
+  Widget _buildPremiumLockedContent(String title, String description) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.accentGreen.withOpacity(0.1),
+              AppColors.accentGreen.withOpacity(0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.accentGreen.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.accentGreen.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock,
+                color: AppColors.accentGreen,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: AppFonts.headlineSmall.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              description,
+              style: AppFonts.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PremiumUpgradeScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Upgrade to Premium',
+                style: AppFonts.buttonText.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumOverlay() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange.shade700),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Advanced charts require Premium',
+              style: TextStyle(
+                color: Colors.orange.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PremiumUpgradeScreen(),
+                ),
+              );
+            },
+            child: Text(
+              'Upgrade',
+              style: TextStyle(
+                color: Colors.orange.shade700,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );

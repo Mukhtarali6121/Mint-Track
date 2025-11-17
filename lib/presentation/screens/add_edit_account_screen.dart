@@ -7,6 +7,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/premium_provider.dart';
+import '../../common/premium_constants.dart';
+import 'premium_upgrade_screen.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class AddEditAccountScreen extends StatefulWidget {
   const AddEditAccountScreen({super.key, this.existing});
@@ -70,7 +74,22 @@ class _AddEditAccountScreenState extends State<AddEditAccountScreen> {
         isSynced: false,
       );
 
-      await provider.addAccount(newAccount);
+      try {
+        await provider.addAccount(newAccount);
+      } catch (e) {
+        // Handle account limit error
+        if (mounted) {
+          final errorMessage = e.toString();
+          if (errorMessage.contains('limit reached')) {
+            // Show upgrade dialog
+            _showUpgradeDialog(context, 'Account Limit Reached', 
+              'You have reached the limit of ${PremiumConstants.FREE_MAX_ACCOUNTS} accounts. Upgrade to Premium for unlimited accounts.');
+          } else {
+            Fluttertoast.showToast(msg: errorMessage, backgroundColor: Colors.red);
+          }
+        }
+        return;
+      }
 
       // If initial balance is provided, create an income transaction
       if (initialBalance > 0) {
@@ -244,6 +263,38 @@ class _AddEditAccountScreenState extends State<AddEditAccountScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showUpgradeDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PremiumUpgradeScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentGreen,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Upgrade'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -13,6 +13,8 @@ import '../../providers/account_provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/recurring_transaction_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/premium_provider.dart';
+import 'premium_upgrade_screen.dart';
 import '../../services/data_cleanup_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
@@ -744,6 +746,60 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                 ),
               ),
             ),
+            // Premium indicator or upgrade option
+            Consumer<PremiumProvider>(
+              builder: (context, premiumProvider, _) {
+                if (premiumProvider.isPremium) {
+                  return _NavTile(
+                    icon: Icons.star,
+                    label: 'Premium',
+                    subtitle: 'Active subscription',
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGreen.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'ACTIVE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accentGreen,
+                        ),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/upgrade');
+                    },
+                  );
+                } else {
+                  return _NavTile(
+                    icon: Icons.star_outline,
+                    label: 'Upgrade to Premium',
+                    subtitle: 'Unlock all features',
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'UPGRADE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/upgrade');
+                    },
+                  );
+                }
+              },
+            ),
             _NavTile(
               icon: Icons.category,
               label: 'Categories',
@@ -755,19 +811,35 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
               label: 'Accounts',
               route: '/accounts',
             ),
-            if (FeatureFlags.goalsFeatureEnabled)
-              _NavTile(
-                icon: Icons.flag_outlined,
-                label: 'Goals',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const GoalsScreen(),
-                    ),
+            // Goals - only show for premium users
+            Consumer<PremiumProvider>(
+              builder: (context, premiumProvider, _) {
+                if (premiumProvider.isPremium) {
+                  return _NavTile(
+                    icon: Icons.flag_outlined,
+                    label: 'Goals',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const GoalsScreen(),
+                        ),
+                      );
+                    },
                   );
-                },
-              ),
+                } else {
+                  return _NavTile(
+                    icon: Icons.flag_outlined,
+                    label: 'Goals',
+                    subtitle: 'Premium feature',
+                    trailing: const Icon(Icons.lock, size: 16),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/upgrade');
+                    },
+                  );
+                }
+              },
+            ),
             _NavTile(
               icon: Icons.repeat,
               label: 'Recurring Transactions',

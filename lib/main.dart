@@ -31,10 +31,13 @@ import 'presentation/screens/terms_and_conditions_screen.dart';
 import 'presentation/screens/charts_screen.dart';
 import 'presentation/screens/accounts_screen.dart';
 import 'presentation/screens/recurring_transactions_screen.dart';
+import 'presentation/screens/premium_upgrade_screen.dart';
 import 'core/firebase_options.dart';
+import 'services/premium_service.dart';
 // 1. IMPORT YOUR NEW PROVIDER
 import 'providers/transaction_provider.dart';
 import 'providers/account_provider.dart';
+import 'providers/premium_provider.dart';
 import 'theme/app_fonts.dart';
 
 void main() async {
@@ -79,6 +82,15 @@ void main() async {
   // Run account migration if needed
   await AccountMigration.migrateToAccounts();
   
+  // Initialize RevenueCat (Premium Service)
+  // Note: This will use cached status if initialization fails
+  try {
+    await PremiumService.instance.initialize();
+  } catch (e) {
+    debugPrint('RevenueCat initialization failed: $e');
+    // Continue without premium features if RevenueCat fails
+  }
+  
   // Check Firebase Auth state (persists across app restarts)
   final FirebaseAuth auth = FirebaseAuth.instance;
   final bool hasFirebaseUser = auth.currentUser != null;
@@ -120,6 +132,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
         ChangeNotifierProvider(create: (_) => GoalProvider()),
         ChangeNotifierProvider(create: (_) => RecurringTransactionProvider()),
+        ChangeNotifierProvider(create: (_) => PremiumProvider()..initialize()),
       ],
       child: MaterialApp(
         title: 'Expense Tracker',
@@ -201,7 +214,7 @@ class MyApp extends StatelessWidget {
           '/profile': (_) => const PlaceholderScreen(title: 'Profile'),
           // Replace placeholder with real profile details screen
           '/account': (_) => const ProfileDetailsScreen(),
-          '/upgrade': (_) => const PlaceholderScreen(title: 'Upgrade Now'),
+          '/upgrade': (_) => const PremiumUpgradeScreen(),
           '/categories': (_) => const EditCategoriesPage(),
           '/accounts': (_) => const AccountsScreen(),
           '/labels': (_) => const PlaceholderScreen(title: 'Labels'),

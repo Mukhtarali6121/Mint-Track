@@ -10,6 +10,8 @@ import '../../models/recurring_transaction.dart';
 import '../../models/account.dart';
 import '../../providers/recurring_transaction_provider.dart';
 import '../../providers/account_provider.dart';
+import '../../common/premium_constants.dart';
+import 'premium_upgrade_screen.dart';
 
 class AddEditRecurringTransactionScreen extends StatefulWidget {
   const AddEditRecurringTransactionScreen({super.key, this.existing});
@@ -248,7 +250,23 @@ class _AddEditRecurringTransactionScreenState extends State<AddEditRecurringTran
       final transactionProvider = context.read<TransactionProvider>();
       await provider.updateRecurringTransaction(recurring, transactionProvider);
     } else {
-      await provider.addRecurringTransaction(recurring);
+      try {
+        await provider.addRecurringTransaction(recurring);
+      } catch (e) {
+        // Handle recurring transaction limit error
+        if (mounted) {
+          final errorMessage = e.toString();
+          if (errorMessage.contains('limit reached')) {
+            _showUpgradeDialog(context, 'Recurring Transaction Limit Reached',
+              'You have reached the limit of ${PremiumConstants.FREE_MAX_RECURRING_TRANSACTIONS} recurring transactions. Upgrade to Premium for unlimited recurring transactions.');
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+            );
+          }
+        }
+        return;
+      }
     }
 
     if (mounted) {
@@ -562,6 +580,38 @@ class _AddEditRecurringTransactionScreenState extends State<AddEditRecurringTran
           ],
         ),
       ),
+    );
+  }
+
+  void _showUpgradeDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PremiumUpgradeScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentGreen,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Upgrade'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

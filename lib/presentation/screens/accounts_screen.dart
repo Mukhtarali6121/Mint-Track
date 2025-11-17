@@ -8,6 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/premium_provider.dart';
+import '../../common/premium_constants.dart';
+import 'premium_upgrade_screen.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -256,19 +259,89 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddEditAccountScreen(),
-            ),
-          ).then((_) {
-            setState(() {});
-          });
+      floatingActionButton: Consumer<PremiumProvider>(
+        builder: (context, premiumProvider, _) {
+          final accountProvider = context.watch<AccountProvider>();
+          final canAdd = accountProvider.canAddAccount();
+          final accountCount = accountProvider.getAccountCount();
+          final isPremium = premiumProvider.isPremium;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Show account limit indicator for free users
+              if (!isPremium)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: canAdd ? Colors.blue.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: canAdd ? Colors.blue.shade200 : Colors.orange.shade300,
+                    ),
+                  ),
+                  child: Text(
+                    '$accountCount/${PremiumConstants.FREE_MAX_ACCOUNTS} accounts',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: canAdd ? Colors.blue.shade700 : Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+              FloatingActionButton(
+                onPressed: canAdd
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AddEditAccountScreen(),
+                          ),
+                        ).then((_) {
+                          setState(() {});
+                        });
+                      }
+                    : () {
+                        // Show upgrade prompt
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Account Limit Reached'),
+                            content: Text(
+                              'You have reached the limit of ${PremiumConstants.FREE_MAX_ACCOUNTS} accounts. Upgrade to Premium for unlimited accounts.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PremiumUpgradeScreen(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accentGreen,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Upgrade'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                backgroundColor: canAdd ? AppColors.accentGreen : Colors.grey,
+                child: Icon(Icons.add, color: Colors.white),
+              ),
+            ],
+          );
         },
-        backgroundColor: AppColors.accentGreen,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

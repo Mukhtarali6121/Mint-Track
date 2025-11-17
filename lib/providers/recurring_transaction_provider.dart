@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/recurring_transaction.dart';
 import '../common/recurring_transaction_hive_storage.dart';
+import '../common/premium_constants.dart';
+import '../services/premium_service.dart';
 import 'transaction_provider.dart';
 import '../models.dart';
 
@@ -41,10 +43,30 @@ class RecurringTransactionProvider extends ChangeNotifier {
       await initialize();
     }
     
+    // Check recurring transaction limit for free users
+    if (!PremiumService.instance.isPremium) {
+      if (_recurringTransactions.length >= PremiumConstants.FREE_MAX_RECURRING_TRANSACTIONS) {
+        throw Exception('Recurring transaction limit reached. Upgrade to Premium for unlimited recurring transactions.');
+      }
+    }
+    
     _recurringTransactions.add(recurringTransaction);
     await RecurringTransactionHiveStorage.saveRecurringTransaction(recurringTransaction);
     
     notifyListeners();
+  }
+
+  /// Get current recurring transaction count
+  int getRecurringTransactionCount() {
+    return _recurringTransactions.length;
+  }
+
+  /// Check if user can add more recurring transactions
+  bool canAddRecurringTransaction() {
+    if (PremiumService.instance.isPremium) {
+      return true; // Unlimited for premium
+    }
+    return getRecurringTransactionCount() < PremiumConstants.FREE_MAX_RECURRING_TRANSACTIONS;
   }
 
   Future<void> updateRecurringTransaction(

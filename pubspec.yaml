@@ -58,6 +58,7 @@ dependencies:
   upgrader: ^11.1.0
   http: ^1.1.0
   share_plus: ^10.1.2
+  purchases_flutter: ^8.1.0
 
 dev_dependencies:
   flutter_test:

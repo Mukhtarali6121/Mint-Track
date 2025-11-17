@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/account.dart';
 import '../common/account_hive_storage.dart';
+import '../common/premium_constants.dart';
+import '../services/premium_service.dart';
 
 class AccountProvider extends ChangeNotifier {
   AccountProvider();
@@ -44,6 +46,15 @@ class AccountProvider extends ChangeNotifier {
       await initialize();
     }
     
+    // Check account limit for free users
+    if (!PremiumService.instance.isPremium) {
+      // Count accounts excluding the default "cash" account
+      final nonCashAccounts = _accounts.where((a) => a.id != 'cash').length;
+      if (nonCashAccounts >= PremiumConstants.FREE_MAX_ACCOUNTS) {
+        throw Exception('Account limit reached. Upgrade to Premium for unlimited accounts.');
+      }
+    }
+    
     // Add to local list
     _accounts.add(account);
     
@@ -51,6 +62,19 @@ class AccountProvider extends ChangeNotifier {
     await AccountHiveStorage.saveAccount(account);
     
     notifyListeners();
+  }
+
+  /// Get current account count (excluding cash)
+  int getAccountCount() {
+    return _accounts.where((a) => a.id != 'cash').length;
+  }
+
+  /// Check if user can add more accounts
+  bool canAddAccount() {
+    if (PremiumService.instance.isPremium) {
+      return true; // Unlimited for premium
+    }
+    return getAccountCount() < PremiumConstants.FREE_MAX_ACCOUNTS;
   }
 
   Future<void> updateAccount(Account account) async {

@@ -25,7 +25,9 @@ import '../../providers/transaction_provider.dart';
 import '../../widgets/goals_widget.dart';
 import '../../widgets/recurring_transactions_widget.dart';
 import '../../providers/recurring_transaction_provider.dart';
+import '../../providers/premium_provider.dart';
 import '../../services/recurring_transaction_service.dart';
+import 'premium_upgrade_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -595,11 +597,90 @@ class _DashboardScreenState extends State<DashboardScreen>
                         },
                       ),
 
-                      // Goals Widget
-                      if (FeatureFlags.goalsFeatureEnabled) ...[
-                        const GoalsWidget(),
-                        const SizedBox(height: 16),
-                      ],
+                      // Goals Widget (Premium only)
+                      Consumer<PremiumProvider>(
+                        builder: (context, premiumProvider, _) {
+                          if (premiumProvider.isPremium) {
+                            return const Column(
+                              children: [
+                                GoalsWidget(),
+                                SizedBox(height: 16),
+                              ],
+                            );
+                          } else {
+                            // Show upgrade prompt for free users
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PremiumUpgradeScreen(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.accentGreen.withOpacity(0.1),
+                                      AppColors.accentGreen.withOpacity(0.05),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: AppColors.accentGreen.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accentGreen.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.flag,
+                                        color: AppColors.accentGreen,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Goals Feature',
+                                            style: AppFonts.bodyLarge.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Unlock goals to track your financial targets',
+                                            style: AppFonts.bodySmall.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.lock,
+                                      color: AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
 
                       // Sync Status Indicator
                       // Consumer<TransactionProvider>(
