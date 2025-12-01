@@ -28,6 +28,7 @@ class _MonthlyComparisonChartWidgetState extends State<MonthlyComparisonChartWid
   late Animation<double> _animation;
   bool _showIncome = true;
   bool _showExpense = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _MonthlyComparisonChartWidgetState extends State<MonthlyComparisonChartWid
   @override
   void dispose() {
     _animationController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -67,6 +69,32 @@ class _MonthlyComparisonChartWidgetState extends State<MonthlyComparisonChartWid
         max
       ].reduce((a, b) => a > b ? a : b),
     );
+
+    // Auto-scroll to the end if current month is at the end
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        final now = DateTime.now();
+        final currentMonthIndex = comparisonData.indexWhere(
+          (data) => data.year == now.year && data.month == now.month,
+        );
+        
+        // If current month is found and it's in the last few months (needs scrolling)
+        if (currentMonthIndex != -1) {
+          final totalWidth = comparisonData.length * 70.0;
+          final screenWidth = MediaQuery.of(context).size.width;
+          
+          // Check if the chart width exceeds screen width (needs scrolling)
+          if (totalWidth > screenWidth) {
+            // Scroll to the end to show the current month
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOut,
+            );
+          }
+        }
+      }
+    });
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -98,6 +126,7 @@ class _MonthlyComparisonChartWidgetState extends State<MonthlyComparisonChartWid
             height: 320,
             padding: const EdgeInsets.symmetric(vertical: 20.0),
             child: SingleChildScrollView(
+              controller: _scrollController,
               scrollDirection: Axis.horizontal,
               child: SizedBox(
                 width: comparisonData.length * 70.0,

@@ -18,7 +18,6 @@ import 'premium_upgrade_screen.dart';
 import '../../services/data_cleanup_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
-import 'goals_screen.dart';
 import 'login/login_Screen.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -90,15 +89,18 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         goalsSynced = await goalProvider.syncGoalsToFirestore();
       }
 
-      // 3. Sync recurring transactions (always sync to handle deletions)
-      final recurringProvider = context.read<RecurringTransactionProvider>();
-      final recurringSyncStats = recurringProvider.getSyncStatistics();
+      // 3. Sync recurring transactions (if feature is enabled, always sync to handle deletions)
       bool recurringSynced = true;
-      int unsyncedRecurring = recurringSyncStats['unsynced']!;
+      int unsyncedRecurring = 0;
+      if (FeatureFlags.recurringTransactionsFeatureEnabled) {
+        final recurringProvider = context.read<RecurringTransactionProvider>();
+        final recurringSyncStats = recurringProvider.getSyncStatistics();
+        unsyncedRecurring = recurringSyncStats['unsynced']!;
 
-      // Always sync to handle deletions
-      recurringSynced = await recurringProvider
-          .syncRecurringTransactionsToFirestore();
+        // Always sync to handle deletions
+        recurringSynced = await recurringProvider
+            .syncRecurringTransactionsToFirestore();
+      }
 
       // 4. Sync transactions (always sync to handle deletions)
       final syncStats = transactionProvider.getSyncStatistics();
@@ -128,7 +130,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
           if (FeatureFlags.goalsFeatureEnabled && unsyncedGoals > 0) {
             parts.add('$unsyncedGoals goal(s)');
           }
-          if (unsyncedRecurring > 0) {
+          if (FeatureFlags.recurringTransactionsFeatureEnabled && unsyncedRecurring > 0) {
             parts.add('$unsyncedRecurring recurring transaction(s)');
           }
 
@@ -811,6 +813,12 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
               label: 'Accounts',
               route: '/accounts',
             ),
+            if (FeatureFlags.recurringTransactionsFeatureEnabled)
+              _NavTile(
+                icon: Icons.repeat,
+                label: 'Recurring Transactions',
+                route: '/recurring',
+              ),
             // Goals - only show for premium users
             Consumer<PremiumProvider>(
               builder: (context, premiumProvider, _) {

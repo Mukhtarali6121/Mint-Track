@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/goal.dart';
+import '../models/goal_contribution.dart';
 import '../common/goal_hive_storage.dart';
+import '../common/goal_contribution_hive_storage.dart';
 import 'transaction_provider.dart';
 import '../models.dart';
 
@@ -20,6 +22,7 @@ class GoalProvider extends ChangeNotifier {
     if (_initialized) return;
     
     await GoalHiveStorage.init();
+    await GoalContributionHiveStorage.init(); // Initialize contributions storage
     await _loadFromHive();
     
     _initialized = true;
@@ -104,54 +107,13 @@ class GoalProvider extends ChangeNotifier {
     return _goals.where((goal) => goal.type == GoalType.spendingLimit).toList();
   }
 
-  /// Calculate progress for a goal based on transactions
+  /// Calculate progress for a goal based on contributions
   double calculateProgress(Goal goal, TransactionProvider transactionProvider) {
-    if (goal.targetAmount == null) {
-      return 0.0; // Text-only goals have no progress
-    }
-
-    final allTransactions = transactionProvider.items;
-    double totalAmount = 0.0;
-
-    if (goal.type == GoalType.saving) {
-      // For saving goals, sum income transactions
-      var relevantTransactions = allTransactions
-          .where((t) => t.type == TransactionType.income);
-
-      // Filter by account if specified
-      if (goal.accountId != null) {
-        relevantTransactions = relevantTransactions
-            .where((t) => t.accountId == goal.accountId);
-      }
-
-      // Filter by category if specified
-      if (goal.categoryId != null) {
-        relevantTransactions = relevantTransactions
-            .where((t) => t.category == goal.categoryId);
-      }
-
-      // Sum amounts
-      totalAmount = relevantTransactions.fold(0.0, (total, t) => total + t.amount);
-    } else if (goal.type == GoalType.spendingLimit) {
-      // For spending limits, sum expense transactions
-      var relevantTransactions = allTransactions
-          .where((t) => t.type == TransactionType.expense);
-
-      // Filter by account if specified
-      if (goal.accountId != null) {
-        relevantTransactions = relevantTransactions
-            .where((t) => t.accountId == goal.accountId);
-      }
-
-      // Filter by category if specified
-      if (goal.categoryId != null) {
-        relevantTransactions = relevantTransactions
-            .where((t) => t.category == goal.categoryId);
-      }
-
-      // Sum amounts
-      totalAmount = relevantTransactions.fold(0.0, (total, t) => total + t.amount);
-    }
+    // Get all contributions for this goal (works for both goals with and without target amounts)
+    final contributions = GoalContributionHiveStorage.getContributionsForGoal(goal.id);
+    
+    // Sum all contribution amounts
+    double totalAmount = contributions.fold(0.0, (total, contribution) => total + contribution.amount);
 
     // Update goal's current amount and check completion
     final wasCompleted = goal.isCompleted;
@@ -177,6 +139,7 @@ class GoalProvider extends ChangeNotifier {
         GoalHiveStorage.updateGoal(updatedGoal);
       }
       // Otherwise, don't save to Hive here to avoid excessive writes - will be saved on sync
+      // Note: Don't call notifyListeners() here - it's called by updateAllProgress() to avoid build-time notifications
     }
 
     return totalAmount;

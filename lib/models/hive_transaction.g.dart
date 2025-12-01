@@ -24,10 +24,10 @@ class HiveTransactionAdapter extends TypeAdapter<HiveTransaction> {
       date: fields[4] as DateTime,
       category: fields[5] as String,
       note: fields[6] as String?,
-      isSynced: fields[7] as bool? ?? false,
+      isSynced: fields[7] as bool,
       createdAt: fields[8] as DateTime,
       userId: fields[9] as String,
-      accountId: fields[10] as String? ?? 'cash', // Handle null for old data
+      accountId: fields[10] as String,
       recurringTransactionId: fields[11] as String?,
     );
   }

@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models.dart';
 import '../models/hive_transaction.dart';
 import '../common/transaction_hive_storage.dart';
+import '../common/goal_contribution_hive_storage.dart';
+import '../common/feature_flags.dart';
 
 class TransactionProvider extends ChangeNotifier {
   TransactionProvider();
@@ -82,6 +84,17 @@ class TransactionProvider extends ChangeNotifier {
   Future<void> remove(String id) async {
     _items.removeWhere((e) => e.id == id);
     await TransactionHiveStorage.deleteTransaction(id);
+    
+    // Delete any goal contributions linked to this transaction
+    if (FeatureFlags.goalsFeatureEnabled) {
+      try {
+        await GoalContributionHiveStorage.init();
+        await GoalContributionHiveStorage.deleteContributionsForTransaction(id);
+      } catch (e) {
+        debugPrint('Error deleting contributions for transaction: $e');
+      }
+    }
+    
     notifyListeners();
   }
 

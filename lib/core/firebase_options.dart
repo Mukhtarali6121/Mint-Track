@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -64,5 +61,14 @@ class DefaultFirebaseOptions {
     projectId: 'expense-tracker-91ff4',
     storageBucket: 'expense-tracker-91ff4.firebasestorage.app',
     iosBundleId: 'com.expense.tracker.expenseTracker',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDBB4ITW4zjri__vX7xc_tSd5U6abnpzrI',
+    appId: '1:202571349641:web:0dabf9e8e41c5a77a31058',
+    messagingSenderId: '202571349641',
+    projectId: 'expense-tracker-91ff4',
+    authDomain: 'expense-tracker-91ff4.firebaseapp.com',
+    storageBucket: 'expense-tracker-91ff4.firebasestorage.app',
   );
 }
