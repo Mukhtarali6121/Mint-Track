@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'common/currency_provider.dart';
@@ -21,6 +22,7 @@ import 'common/hive_storage.dart';
 import 'common/transaction_hive_storage.dart';
 import 'common/account_hive_storage.dart';
 import 'common/recurring_transaction_hive_storage.dart';
+import 'common/goal_contribution_hive_storage.dart';
 import 'common/account_migration.dart';
 import 'presentation/screens/dashboard.dart';
 import 'presentation/screens/edit_transaction.dart';
@@ -44,21 +46,33 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Crashlytics
-  FlutterError.onError = (errorDetails) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-  };
-  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+  // Initialize Crashlytics (works on web, but we can conditionally enable it)
+  if (!kIsWeb) {
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+    // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } else {
+    // On web, use standard error handling
+    FlutterError.onError = (errorDetails) {
+      FlutterError.presentError(errorDetails);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      debugPrint('Uncaught error: $error\nStack: $stack');
+      return true;
+    };
+  }
 
   await LocalStorage().init();
   await HiveStorage.init();
   await TransactionHiveStorage.init(); // Adapter registers here safely
   await AccountHiveStorage.init(); // Initialize Account storage
   await RecurringTransactionHiveStorage.init(); // Initialize Recurring Transaction storage
+  await GoalContributionHiveStorage.init(); // Initialize Goal Contribution storage
   await NotificationService().initialize();
   
   // Schedule daily notification at 9 PM (works even when app is killed)
@@ -155,6 +169,7 @@ class MyApp extends StatelessWidget {
             foregroundColor: AppColors.textPrimary,
             elevation: 0,
             centerTitle: true,
+            systemOverlayStyle: SystemUiOverlayStyle.dark,
             titleTextStyle: AppFonts.appBarTitle.copyWith(
               color: AppColors.textPrimary,
             ),

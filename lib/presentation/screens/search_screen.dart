@@ -170,10 +170,7 @@ class _SearchScreenState extends State<SearchScreen>
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return _FilterSheet(
           initialType: _type,
@@ -998,245 +995,270 @@ class _FilterSheetState extends State<_FilterSheet> {
     final transactions = provider.getAllTransactions();
     final categories = transactions.map((t) => t.category).toSet().toList()..sort();
 
-    return SafeArea(
-      child: Container(
+    return Container(
+      decoration: BoxDecoration(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Filters',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: AppColors.textSecondary),
-                ),
-              ],
+            // Drag Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            const SizedBox(height: 8),
+            
             Flexible(
               child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Type Filter
-                    Text('Type', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
+                    // Header
+                    Row(
                       children: [
-                        ChoiceChip(
-                          label: const Text('All'),
-                          selected: _type == null,
-                          onSelected: (_) => setState(() => _type = null),
-                          selectedColor: AppColors.accentGreen.withOpacity(0.2),
-                          labelStyle: const TextStyle(
-                            color: AppColors.textPrimary,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.accentGreen.withOpacity(0.15),
+                                AppColors.accentGreen.withOpacity(0.08),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.accentGreen,
+                            size: 20,
                           ),
                         ),
-                        ChoiceChip(
-                          label: const Text('Income'),
-                          selected: _type == TransactionType.income,
-                          onSelected: (_) => setState(() => _type = TransactionType.income),
-                          selectedColor: AppColors.accentGreen.withOpacity(0.2),
-                          labelStyle: const TextStyle(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        ChoiceChip(
-                          label: const Text('Expense'),
-                          selected: _type == TransactionType.expense,
-                          onSelected: (_) => setState(() => _type = TransactionType.expense),
-                          selectedColor: AppColors.error.withOpacity(0.2),
-                          labelStyle: const TextStyle(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Category Filter
-                    Text('Category', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String?>(
-                      value: _category,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.accentGreen, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                      items: [
-                        DropdownMenuItem<String?>(value: null, child: Text('All Categories')),
-                        ...categories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c))).toList(),
-                      ],
-                      onChanged: (v) => setState(() => _category = v),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Period Filter
-                    Text('Period', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final p in [
-                          PeriodFilter.day,
-                          PeriodFilter.week,
-                          PeriodFilter.month,
-                          PeriodFilter.year,
-                          PeriodFilter.custom,
-                        ])
-                          InkWell(
-                            onTap: () async {
-                              if (p == PeriodFilter.custom) {
-                                await _pickCustomRange();
-                              }
-                              setState(() => _period = p);
-                            },
-                            child: AnimatedContainer(
-                              duration: AnimationUtils.fastDuration,
-                              curve: AnimationUtils.defaultCurve,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _period == p
-                                    ? AppColors.accentGreen.withOpacity(0.1)
-                                    : AppColors.backgroundScaffold,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: _period == p
-                                      ? AppColors.accentGreen
-                                      : AppColors.border.withOpacity(0.5),
-                                  width: _period == p ? 2 : 1,
-                                ),
-                              ),
-                              child: Text(
-                                _labelForFilter(p),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Filters',
                                 style: TextStyle(
-                                  color: _period == p
-                                      ? AppColors.accentGreen
-                                      : AppColors.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.5,
                                 ),
                               ),
+                              Text(
+                                'Refine your search',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.backgroundScaffold,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textSecondary,
+                              size: 20,
+                            ),
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Type Filter - Compact
+                    _buildCompactSection(
+                      icon: Icons.swap_horiz_rounded,
+                      title: 'Type',
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _buildCompactChip(
+                            label: 'All',
+                            isSelected: _type == null,
+                            onTap: () => setState(() => _type = null),
+                          ),
+                          _buildCompactChip(
+                            label: 'Income',
+                            isSelected: _type == TransactionType.income,
+                            onTap: () => setState(() => _type = TransactionType.income),
+                          ),
+                          _buildCompactChip(
+                            label: 'Expense',
+                            isSelected: _type == TransactionType.expense,
+                            onTap: () => setState(() => _type = TransactionType.expense),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Category Filter - Compact
+                    _buildCompactSection(
+                      icon: Icons.category_rounded,
+                      title: 'Category',
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.border.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: DropdownButtonFormField<String?>(
+                          value: _category,
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            hintText: 'All Categories',
+                            hintStyle: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
                             ),
                           ),
-                      ],
-                    ),
-                    if (_period == PeriodFilter.custom && _customRange != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '${DateFormat.yMMMd().format(_customRange!.start)} - ${DateFormat.yMMMd().format(_customRange!.end)}',
-                        style: TextStyle(color: AppColors.textSecondary),
+                          items: [
+                            DropdownMenuItem<String?>(value: null, child: Text('All Categories', style: TextStyle(fontSize: 14))),
+                            ...categories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c, style: TextStyle(fontSize: 14)))).toList(),
+                          ],
+                          onChanged: (v) => setState(() => _category = v),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.accentGreen, size: 20),
+                        ),
                       ),
-                    ],
-                    const SizedBox(height: 20),
-                    
-                    // Account Filter
-                    Text('Account', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                    const SizedBox(height: 8),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Period Filter - Compact
+                    _buildCompactSection(
+                      icon: Icons.calendar_today_rounded,
+                      title: 'Period',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final p in [
+                                PeriodFilter.day,
+                                PeriodFilter.week,
+                                PeriodFilter.month,
+                                PeriodFilter.year,
+                                PeriodFilter.custom,
+                              ])
+                                _buildCompactChip(
+                                  label: _labelForFilter(p),
+                                  isSelected: _period == p,
+                                  onTap: () async {
+                                    if (p == PeriodFilter.custom) {
+                                      await _pickCustomRange();
+                                    }
+                                    setState(() => _period = p);
+                                  },
+                                ),
+                            ],
+                          ),
+                          if (_period == PeriodFilter.custom && _customRange != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentGreen.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.accentGreen.withOpacity(0.2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.date_range_rounded, size: 14, color: AppColors.accentGreen),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${DateFormat.yMMMd().format(_customRange!.start)} - ${DateFormat.yMMMd().format(_customRange!.end)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.accentGreen,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Account Filter - Compact
                     Builder(
                       builder: (context) {
                         final accountProvider = context.watch<AccountProvider>();
                         final accounts = accountProvider.accounts;
                         
                         if (accounts.isEmpty) {
-                          return Text(
-                            'No accounts available',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          );
+                          return const SizedBox.shrink();
                         }
                         
-                        return Wrap(
-                          spacing: 8,
-                          children: [
-                            InkWell(
-                              onTap: () => setState(() => _accountId = null),
-                              child: AnimatedContainer(
-                                duration: AnimationUtils.fastDuration,
-                                curve: AnimationUtils.defaultCurve,
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _accountId == null
-                                      ? AppColors.accentGreen.withOpacity(0.1)
-                                      : AppColors.backgroundScaffold,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: _accountId == null
-                                        ? AppColors.accentGreen
-                                        : AppColors.border.withOpacity(0.5),
-                                    width: _accountId == null ? 2 : 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  'All Accounts',
-                                  style: TextStyle(
-                                    color: _accountId == null
-                                        ? AppColors.accentGreen
-                                        : AppColors.textPrimary,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 14,
-                                  ),
-                                ),
+                        return _buildCompactSection(
+                          icon: Icons.account_balance_wallet_rounded,
+                          title: 'Account',
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _buildCompactChip(
+                                label: 'All',
+                                isSelected: _accountId == null,
+                                onTap: () => setState(() => _accountId = null),
                               ),
-                            ),
-                            ...accounts.map((account) {
-                              final isSelected = _accountId == account.id;
-                              return InkWell(
-                                onTap: () => setState(() => _accountId = account.id),
-                                child: AnimatedContainer(
-                                  duration: AnimationUtils.fastDuration,
-                                  curve: AnimationUtils.defaultCurve,
-                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.accentGreen.withOpacity(0.1)
-                                        : AppColors.backgroundScaffold,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.accentGreen
-                                          : AppColors.border.withOpacity(0.5),
-                                      width: isSelected ? 2 : 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    account.name,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? AppColors.accentGreen
-                                          : AppColors.textPrimary,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ],
+                              ...accounts.map((account) {
+                                final isSelected = _accountId == account.id;
+                                return _buildCompactChip(
+                                  label: account.name,
+                                  isSelected: isSelected,
+                                  onTap: () => setState(() => _accountId = account.id),
+                                );
+                              }).toList(),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -1244,54 +1266,205 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
               ),
             ),
+            
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: AnimatedButton(
-                onPressed: () {
-                  widget.onApply(_type, _category, _period, _customRange, _accountId, _sortOption);
-                  Navigator.pop(context);
-                },
-                child: ElevatedButton(
-                  onPressed: () {
-                    widget.onApply(_type, _category, _period, _customRange, _accountId, _sortOption);
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            
+            // Buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  // Apply Button
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.accentGreen,
+                          AppColors.accentGreen.withOpacity(0.9),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accentGreen.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          widget.onApply(_type, _category, _period, _customRange, _accountId, _sortOption);
+                          Navigator.pop(context);
+                        },
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Apply Filters',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
+                  const SizedBox(height: 10),
+                  
+                  // Reset Button
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _resetFilters,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundScaffold,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.border.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.refresh_rounded, color: AppColors.textSecondary, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Reset',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
-            // Reset Button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: TextButton(
-                onPressed: _resetFilters,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactSection({
+    required IconData icon,
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundScaffold,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(7),
                 ),
-                child: Text(
-                  'Reset to Default',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Icon(icon, size: 14, color: AppColors.accentGreen),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.2,
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: [
+                      AppColors.accentGreen,
+                      AppColors.accentGreen.withOpacity(0.8),
+                    ],
+                  )
+                : null,
+            color: isSelected ? null : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? AppColors.accentGreen : AppColors.border.withOpacity(0.3),
+              width: isSelected ? 0 : 1.5,
             ),
-          ],
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.accentGreen.withOpacity(0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
         ),
       ),
     );

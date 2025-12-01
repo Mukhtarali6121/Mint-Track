@@ -1,6 +1,7 @@
 import 'package:expense_tracker/presentation/screens/dashboard.dart';
 import 'package:expense_tracker/presentation/screens/more_screen.dart';
 import 'package:expense_tracker/presentation/screens/charts_screen.dart';
+import 'package:expense_tracker/presentation/screens/goals_screen_new.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/account_provider.dart';
@@ -26,6 +27,7 @@ class _MainPageWidgetState extends State<MainPageWidget> with SingleTickerProvid
   final List<Widget> _pages = const [
     DashboardScreen(),
     ChartsScreen(),
+    GoalsScreenNew(),
     MoreScreen(),
   ];
 
@@ -105,6 +107,12 @@ class _MainPageWidgetState extends State<MainPageWidget> with SingleTickerProvid
                 ),
                 _buildNavItem(
                   index: 2,
+                  icon: Icons.track_changes_outlined,
+                  activeIcon: Icons.track_changes,
+                  label: 'Goals',
+                ),
+                _buildNavItem(
+                  index: 3,
                   icon: Icons.person_outline,
                   activeIcon: Icons.person,
                   label: 'Profile',

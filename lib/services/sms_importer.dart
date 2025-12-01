@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,6 +15,9 @@ class SmsImporter {
   static const String _reviewedKey = 'reviewed_sms_ids_v1';
 
   Future<bool> ensurePermissions() async {
+    // SMS permissions are not available on web
+    if (kIsWeb) return false;
+    
     var status = await Permission.sms.status;
     if (status.isGranted) return true;
     status = await Permission.sms.request();
@@ -31,6 +35,9 @@ class SmsImporter {
   }
 
   Future<List<SmsMessage>> fetchLastTwoDaysUnreviewed() async {
+    // SMS import is not available on web
+    if (kIsWeb) return [];
+    
     final reviewed = await _loadReviewed();
     final now = DateTime.now();
     final from = now.subtract(const Duration(days: 2));
@@ -43,6 +50,9 @@ class SmsImporter {
   }
 
   Future<List<SmsMessage>> fetchUnreviewedInRange({required DateTime start, required DateTime end}) async {
+    // SMS import is not available on web
+    if (kIsWeb) return [];
+    
     final reviewed = await _loadReviewed();
     final msgs = await _query.querySms(
       kinds: [SmsQueryKind.inbox],

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,6 +18,12 @@ class NotificationService {
   /// Initialize the notification service
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    // Local notifications are not supported on web
+    if (kIsWeb) {
+      _isInitialized = true;
+      return;
+    }
 
     // Initialize timezone
     tz.initializeTimeZones();
@@ -55,6 +62,9 @@ class NotificationService {
 
   /// Request notification permissions
   Future<bool> requestPermissions() async {
+    // Local notifications are not supported on web
+    if (kIsWeb) return false;
+    
     // Request notification permission
     final status = await Permission.notification.request();
     
@@ -70,6 +80,9 @@ class NotificationService {
 
   /// Check if notifications are enabled
   Future<bool> areNotificationsEnabled() async {
+    // Local notifications are not supported on web
+    if (kIsWeb) return false;
+    
     final status = await Permission.notification.status;
     return status.isGranted;
   }
@@ -81,6 +94,8 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    // Local notifications are not supported on web
+    if (kIsWeb) return;
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'expense_tracker_channel',
@@ -116,6 +131,9 @@ class NotificationService {
   /// Schedule a daily notification at 9:00 PM
   /// Schedule a daily notification at 9:00 PM
   Future<void> scheduleDailyNotification() async {
+    // Local notifications are not supported on web
+    if (kIsWeb) return;
+    
     // Cancel any existing daily notification
     await cancelNotification(1);
 
@@ -186,16 +204,19 @@ class NotificationService {
 
   /// Cancel a specific notification
   Future<void> cancelNotification(int id) async {
+    if (kIsWeb) return;
     await _flutterLocalNotificationsPlugin.cancel(id);
   }
 
   /// Cancel all notifications
   Future<void> cancelAllNotifications() async {
+    if (kIsWeb) return;
     await _flutterLocalNotificationsPlugin.cancelAll();
   }
 
   /// Show a test notification immediately
   Future<void> showTestNotification() async {
+    if (kIsWeb) return;
     await showNotification(
       id: 999,
       title: '🔔 Notification Test',
@@ -206,6 +227,8 @@ class NotificationService {
 
   /// Schedule a test notification for 1 minute from now (for testing)
   Future<void> scheduleTestNotificationInOneMinute() async {
+    if (kIsWeb) return;
+    
     final now = tz.TZDateTime.now(tz.local);
     final testTime = now.add(const Duration(minutes: 1));
     
@@ -246,12 +269,15 @@ class NotificationService {
 
   /// Reschedule daily notification (useful when app starts)
   Future<void> rescheduleDailyNotification() async {
+    if (kIsWeb) return;
+    
     debugPrint('Rescheduling daily notification...');
     await scheduleDailyNotification();
   }
 
   /// Get pending notifications (for debugging)
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    if (kIsWeb) return [];
     return await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
   }
 

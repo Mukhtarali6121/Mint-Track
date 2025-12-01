@@ -1,16 +1,22 @@
 import 'package:expense_tracker/theme/app_colors.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/category_picker.dart';
+import '../../widgets/goal_selection_dialog.dart';
 import '../../models.dart';
 import '../../models/dynamic_category.dart';
 import '../../models/recurring_transaction.dart';
+import '../../models/goal_contribution.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/recurring_transaction_provider.dart';
+import '../../providers/goal_provider.dart';
+import '../../common/feature_flags.dart';
+import '../../common/goal_contribution_hive_storage.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   const EditTransactionScreen({super.key, this.existing});
@@ -32,6 +38,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   bool _makeRecurring = false;
   RecurringFrequency _recurringFrequency = RecurringFrequency.monthly;
   bool _isSaving = false;
+  bool _addToGoal = false;
+  String? _selectedGoalId;
 
   String _getCategoryIconPath(String categoryName) {
     final dynamicCategory =
@@ -199,7 +207,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
     
     // Validate title if recurring is enabled
-    if (_makeRecurring && _titleController.text.trim().isEmpty) {
+    if (_makeRecurring && FeatureFlags.recurringTransactionsFeatureEnabled && _titleController.text.trim().isEmpty) {
         if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -218,7 +226,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       
       // If make recurring is enabled, create recurring transaction first to get its ID
       String? recurringTransactionId;
-      if (widget.existing == null && _makeRecurring) {
+      if (widget.existing == null && _makeRecurring && FeatureFlags.recurringTransactionsFeatureEnabled) {
         final recurringProvider = context.read<RecurringTransactionProvider>();
         
         // Create a temporary recurring transaction to calculate next occurrence
@@ -287,8 +295,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         accountId: _selectedAccountId,
         recurringTransactionId: recurringTransactionId, // Link to recurring transaction if created
       );
+      String? transactionId;
       if (widget.existing == null) {
         await provider.add(newItem);
+        transactionId = newItem.id;
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -300,7 +310,32 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         }
       } else {
         await provider.update(newItem);
+        transactionId = newItem.id;
       }
+
+      // Add contribution to goal if checkbox was checked
+      if (_addToGoal && _selectedGoalId != null && FeatureFlags.goalsFeatureEnabled) {
+        await GoalContributionHiveStorage.init();
+        final contribution = GoalContribution(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          goalId: _selectedGoalId!,
+          amount: parsedAmount,
+          transactionId: transactionId,
+          date: _date,
+          createdAt: DateTime.now(),
+          userId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
+          isSynced: false,
+        );
+        await GoalContributionHiveStorage.saveContribution(contribution);
+        
+        // Update goal progress
+        final goalProvider = context.read<GoalProvider>();
+        final goal = goalProvider.getGoal(_selectedGoalId!);
+        if (goal != null) {
+          await goalProvider.updateAllProgress(context.read<TransactionProvider>());
+        }
+      }
+
       if (mounted) Navigator.of(context).pop();
     } finally {
       if (mounted) {
@@ -309,6 +344,137 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         });
       }
     }
+  }
+
+  // 🔸 Add to Goal Checkbox
+  Widget _buildAddToGoalCheckbox() {
+    return InkWell(
+      onTap: () async {
+        if (!_addToGoal) {
+          // Show goal selection dialog
+          final amount = double.tryParse(_amountController.text) ?? 0.0;
+          if (amount <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please enter an amount first'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+
+          final transactionId = widget.existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
+          final selectedGoalId = await showDialog<String>(
+            context: context,
+            builder: (context) => GoalSelectionDialog(
+              amount: amount,
+              transactionId: transactionId,
+              transactionCategory: _category, // Pass the selected transaction category
+            ),
+          );
+
+          if (selectedGoalId != null && mounted) {
+            setState(() {
+              _addToGoal = true;
+              _selectedGoalId = selectedGoalId;
+            });
+          }
+        } else {
+          // Uncheck
+          setState(() {
+            _addToGoal = false;
+            _selectedGoalId = null;
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.all(_addToGoal ? 16 : 12),
+        decoration: BoxDecoration(
+          color: _addToGoal 
+              ? AppColors.accentGreen.withOpacity(0.1)
+              : AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _addToGoal 
+                ? AppColors.accentGreen.withOpacity(0.3)
+                : Colors.transparent,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.textPrimary.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: _addToGoal ? AppColors.accentGreen : Colors.transparent,
+                border: Border.all(
+                  color: _addToGoal ? AppColors.accentGreen : AppColors.border,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: _addToGoal
+                  ? const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Add to Goal',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _addToGoal 
+                          ? AppColors.accentGreen 
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (_addToGoal && _selectedGoalId != null) ...[
+                    const SizedBox(height: 4),
+                    Builder(
+                      builder: (context) {
+                        final goalProvider = context.watch<GoalProvider>();
+                        final goal = goalProvider.getGoal(_selectedGoalId!);
+                        return Text(
+                          goal?.title ?? 'Selected Goal',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.savings,
+              color: _addToGoal 
+                  ? AppColors.accentGreen 
+                  : AppColors.textSecondary,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteTransaction() async {
@@ -588,8 +754,13 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                 },
                               ),
                             ),
+                            // Add to Goal Checkbox (only for income transactions)
+                            if (_type == TransactionType.income && FeatureFlags.goalsFeatureEnabled) ...[
+                              const SizedBox(height: 16),
+                              _buildAddToGoalCheckbox(),
+                            ],
                             // Make Recurring Toggle (only for new transactions)
-                            if (widget.existing == null) ...[
+                            if (widget.existing == null && FeatureFlags.recurringTransactionsFeatureEnabled) ...[
                               const SizedBox(height: 16),
                               _buildRecurringToggle(),
                             ],

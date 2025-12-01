@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart' show HiveError;
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/goal.dart';
 
@@ -47,7 +48,32 @@ class GoalHiveStorage {
       } catch (e) {
         debugPrint('Error opening goal box: $e');
         debugPrint('Adapter registered: ${Hive.isAdapterRegistered(4)}');
-        rethrow;
+        // If box is corrupted (type mismatch or unknown typeId), delete it and create a new one
+        if (e is HiveError && 
+            (e.message.contains('type cast') || 
+             e.message.contains('subtype') ||
+             e.message.contains('unknown typeId') ||
+             e.message.contains('Cannot read'))) {
+          debugPrint('Goal box appears corrupted, deleting and recreating...');
+          try {
+            // Close box if it's partially open
+            if (_goalBox != null && _goalBox!.isOpen) {
+              await _goalBox!.close();
+              _goalBox = null;
+            }
+            // Delete the corrupted box
+            await Hive.deleteBoxFromDisk(_goalBoxName);
+            debugPrint('Deleted corrupted goal box');
+            // Create a new box
+            _goalBox = await Hive.openBox<Goal>(_goalBoxName);
+            debugPrint('Goal box recreated successfully');
+          } catch (deleteError) {
+            debugPrint('Error recreating goal box: $deleteError');
+            rethrow;
+          }
+        } else {
+          rethrow;
+        }
       }
     }
   }

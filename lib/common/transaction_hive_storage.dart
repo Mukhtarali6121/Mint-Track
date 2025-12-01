@@ -74,8 +74,8 @@ class TransactionHiveStorage {
     return _transactionBox!.values
         .where((transaction) => 
             transaction.userId == userId &&
-            transaction.date.isAfter(start.subtract(const Duration(days: 1))) &&
-            transaction.date.isBefore(end.add(const Duration(days: 1))))
+            !transaction.date.isBefore(start) &&
+            !transaction.date.isAfter(end))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date)); // Sort by date descending
   }

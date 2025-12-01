@@ -3,6 +3,7 @@ import 'package:expense_tracker/theme/app_fonts.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,6 @@ import 'search_screen.dart';
 import '../../services/notification_service.dart';
 import '../../services/update_check_service.dart';
 import '../../providers/transaction_provider.dart';
-import '../../widgets/goals_widget.dart';
 import '../../widgets/recurring_transactions_widget.dart';
 import '../../providers/recurring_transaction_provider.dart';
 import '../../services/recurring_transaction_service.dart';
@@ -256,6 +256,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   /// Check and process recurring transactions
   Future<void> _checkRecurringTransactions() async {
+    if (!FeatureFlags.recurringTransactionsFeatureEnabled) return;
+    
     try {
       // Wait a bit to ensure providers are initialized
       await Future.delayed(const Duration(seconds: 1));
@@ -437,19 +439,22 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Only show update check on Android
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
 
-    Widget dashboardContent = Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: false,
-      appBar: AppBar(
+    Widget dashboardContent = AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        // Prevent elevation change on scroll
-        surfaceTintColor: Colors.transparent,
-        // Prevent tint color change
-        automaticallyImplyLeading: false,
-        // Prevent back button
-        title: FadeTransition(
+        extendBodyBehindAppBar: false,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          // Prevent elevation change on scroll
+          surfaceTintColor: Colors.transparent,
+          // Prevent tint color change
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+          automaticallyImplyLeading: false,
+          // Prevent back button
+          title: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
@@ -579,27 +584,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
 
                       // Recurring Transactions Widget
-                      Consumer<RecurringTransactionProvider>(
-                        builder: (context, recurringProvider, _) {
-                          final pendingRecurring = recurringProvider.getDueRecurringTransactions()
-                              .where((recurring) => !recurring.autoApprove)
-                              .toList();
-                          final activeRecurring = recurringProvider.getActiveRecurringTransactions()
-                              .take(3)
-                              .toList();
-                          
-                          if (pendingRecurring.isEmpty && activeRecurring.isEmpty) {
-                            return const SizedBox(height: 16);
-                          }
-                          return const RecurringTransactionsWidget();
-                        },
-                      ),
-
-                      // Goals Widget
-                      if (FeatureFlags.goalsFeatureEnabled) ...[
-                        const GoalsWidget(),
-                        const SizedBox(height: 16),
+                      if (FeatureFlags.recurringTransactionsFeatureEnabled) ...[
+                        Consumer<RecurringTransactionProvider>(
+                          builder: (context, recurringProvider, _) {
+                            final pendingRecurring = recurringProvider.getDueRecurringTransactions()
+                                .where((recurring) => !recurring.autoApprove)
+                                .toList();
+                            final activeRecurring = recurringProvider.getActiveRecurringTransactions()
+                                .take(3)
+                                .toList();
+                            
+                            if (pendingRecurring.isEmpty && activeRecurring.isEmpty) {
+                              return const SizedBox(height: 16);
+                            }
+                            return const RecurringTransactionsWidget();
+                          },
+                        ),
                       ],
+                      const SizedBox(height: 16),
 
                       // Sync Status Indicator
                       // Consumer<TransactionProvider>(
@@ -913,6 +915,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: const Icon(Icons.add, color: Colors.white),
               ),
             ),
+      ),
     );
 
     // Wrap with UpgradeAlert only on Android
@@ -1602,398 +1605,639 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.tune,
-                        color: AppColors.accentGreen,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Filter Transactions',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close, color: AppColors.textSecondary),
-                    ),
-                  ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const SizedBox(height: 24),
-
-                // Time Period Section
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 18,
-                      color: AppColors.accentGreen,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Time Period',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                StatefulBuilder(
-                  builder: (context, setState) {
-                    // Calculate date range for current selection
-                    DateTimeRange getTempRange() {
-                      final now = DateTime.now();
-                      switch (tempFilter) {
-                        case PeriodFilter.day:
-                          return DateTimeRange(
-                            start: _startOfDay(now),
-                            end: _endOfDay(now),
-                          );
-                        case PeriodFilter.week:
-                          final start = now.subtract(
-                            Duration(days: now.weekday - 1),
-                          );
-                          final end = start.add(const Duration(days: 6));
-                          return DateTimeRange(
-                            start: _startOfDay(start),
-                            end: _endOfDay(end),
-                          );
-                        case PeriodFilter.month:
-                          final start = DateTime(now.year, now.month, 1);
-                          final end = DateTime(now.year, now.month + 1, 0);
-                          return DateTimeRange(
-                            start: _startOfDay(start),
-                            end: _endOfDay(end),
-                          );
-                        case PeriodFilter.year:
-                          final start = DateTime(now.year, 1, 1);
-                          final end = DateTime(now.year, 12, 31);
-                          return DateTimeRange(
-                            start: _startOfDay(start),
-                            end: _endOfDay(end),
-                          );
-                        case PeriodFilter.custom:
-                          return tempCustomRange ??
-                              DateTimeRange(
-                                start: _startOfDay(now),
-                                end: _endOfDay(now),
-                              );
-                      }
-                    }
-
-                    final previewRange = getTempRange();
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            for (final period in [
-                              PeriodFilter.day,
-                              PeriodFilter.week,
-                              PeriodFilter.month,
-                              PeriodFilter.year,
-                              PeriodFilter.custom,
-                            ])
-                              InkWell(
-                                onTap: () async {
-                                  if (period == PeriodFilter.custom) {
-                                    final picked = await showDateRangePicker(
-                                      context: context,
-                                      firstDate: DateTime(2015),
-                                      lastDate: DateTime(2100),
-                                      initialDateRange:
-                                          tempCustomRange ?? _currentRange(),
-                                    );
-
-                                    if (picked != null) {
-                                      setState(() {
-                                        tempFilter = period;
-                                        tempCustomRange = DateTimeRange(
-                                          start: _startOfDay(picked.start),
-                                          end: _endOfDay(picked.end),
-                                        );
-                                      });
-                                    }
-                                  } else {
-                                    setState(() {
-                                      tempFilter = period;
-                                      tempCustomRange = null;
-                                    });
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: tempFilter == period
-                                        ? AppColors.accentGreen.withOpacity(0.1)
-                                        : AppColors.backgroundScaffold,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: tempFilter == period
-                                          ? AppColors.accentGreen
-                                          : AppColors.border.withOpacity(0.5),
-                                      width: tempFilter == period ? 2 : 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    _labelForFilter(period),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: tempFilter == period
-                                          ? AppColors.accentGreen
-                                          : AppColors.textPrimary,
-                                    ),
+              ),
+              
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.accentGreen.withOpacity(0.15),
+                                  AppColors.accentGreen.withOpacity(0.08),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.tune_rounded,
+                              color: AppColors.accentGreen,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Filter Transactions',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.5,
                                   ),
                                 ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Customize your view',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundScaffold,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: AppColors.textSecondary,
+                                size: 20,
                               ),
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Time Period Section
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundScaffold,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.border.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentGreen.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 16,
+                                    color: AppColors.accentGreen,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Time Period',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            StatefulBuilder(
+                              builder: (context, setState) {
+                                // Calculate date range for current selection
+                                DateTimeRange getTempRange() {
+                                  final now = DateTime.now();
+                                  switch (tempFilter) {
+                                    case PeriodFilter.day:
+                                      return DateTimeRange(
+                                        start: _startOfDay(now),
+                                        end: _endOfDay(now),
+                                      );
+                                    case PeriodFilter.week:
+                                      final start = now.subtract(
+                                        Duration(days: now.weekday - 1),
+                                      );
+                                      final end = start.add(const Duration(days: 6));
+                                      return DateTimeRange(
+                                        start: _startOfDay(start),
+                                        end: _endOfDay(end),
+                                      );
+                                    case PeriodFilter.month:
+                                      final start = DateTime(now.year, now.month, 1);
+                                      final end = DateTime(now.year, now.month + 1, 0);
+                                      return DateTimeRange(
+                                        start: _startOfDay(start),
+                                        end: _endOfDay(end),
+                                      );
+                                    case PeriodFilter.year:
+                                      final start = DateTime(now.year, 1, 1);
+                                      final end = DateTime(now.year, 12, 31);
+                                      return DateTimeRange(
+                                        start: _startOfDay(start),
+                                        end: _endOfDay(end),
+                                      );
+                                    case PeriodFilter.custom:
+                                      return tempCustomRange ??
+                                          DateTimeRange(
+                                            start: _startOfDay(now),
+                                            end: _endOfDay(now),
+                                          );
+                                  }
+                                }
+
+                                final previewRange = getTempRange();
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final period in [
+                                          PeriodFilter.day,
+                                          PeriodFilter.week,
+                                          PeriodFilter.month,
+                                          PeriodFilter.year,
+                                          PeriodFilter.custom,
+                                        ])
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () async {
+                                                if (period == PeriodFilter.custom) {
+                                                  final picked = await showDateRangePicker(
+                                                    context: context,
+                                                    firstDate: DateTime(2015),
+                                                    lastDate: DateTime(2100),
+                                                    initialDateRange:
+                                                        tempCustomRange ?? _currentRange(),
+                                                  );
+
+                                                  if (picked != null) {
+                                                    setState(() {
+                                                      tempFilter = period;
+                                                      tempCustomRange = DateTimeRange(
+                                                        start: _startOfDay(picked.start),
+                                                        end: _endOfDay(picked.end),
+                                                      );
+                                                    });
+                                                  }
+                                                } else {
+                                                  setState(() {
+                                                    tempFilter = period;
+                                                    tempCustomRange = null;
+                                                  });
+                                                }
+                                              },
+                                              borderRadius: BorderRadius.circular(14),
+                                              child: AnimatedContainer(
+                                                duration: const Duration(milliseconds: 200),
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 20,
+                                                  vertical: 12,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  gradient: tempFilter == period
+                                                      ? LinearGradient(
+                                                          colors: [
+                                                            AppColors.accentGreen,
+                                                            AppColors.accentGreen.withOpacity(0.8),
+                                                          ],
+                                                        )
+                                                      : null,
+                                                  color: tempFilter == period
+                                                      ? null
+                                                      : Colors.white,
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  border: Border.all(
+                                                    color: tempFilter == period
+                                                        ? AppColors.accentGreen
+                                                        : AppColors.border.withOpacity(0.3),
+                                                    width: tempFilter == period ? 0 : 1.5,
+                                                  ),
+                                                  boxShadow: tempFilter == period
+                                                      ? [
+                                                          BoxShadow(
+                                                            color: AppColors.accentGreen.withOpacity(0.3),
+                                                            blurRadius: 8,
+                                                            offset: const Offset(0, 2),
+                                                          ),
+                                                        ]
+                                                      : null,
+                                                ),
+                                                child: Text(
+                                                  _labelForFilter(period),
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: tempFilter == period
+                                                        ? Colors.white
+                                                        : AppColors.textPrimary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Date Preview
+                                    Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            AppColors.accentGreen.withOpacity(0.12),
+                                            AppColors.accentGreen.withOpacity(0.06),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: AppColors.accentGreen.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentGreen.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.date_range_rounded,
+                                              size: 16,
+                                              color: AppColors.accentGreen,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Selected Period',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  _getDateRangeTextForRange(
+                                                    previewRange,
+                                                    tempFilter,
+                                                  ),
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AppColors.accentGreen,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 12), // Date Preview
+                      ),
+                      const SizedBox(height: 20),
+
+                      if (accounts.isNotEmpty) ...[
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.accentGreen.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.backgroundScaffold,
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: AppColors.accentGreen.withOpacity(0.3),
+                              color: AppColors.border.withOpacity(0.2),
                               width: 1,
                             ),
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.date_range,
-                                size: 16,
-                                color: AppColors.accentGreen,
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentGreen.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.account_balance_wallet_rounded,
+                                      size: 16,
+                                      color: AppColors.accentGreen,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Account',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _getDateRangeTextForRange(
-                                    previewRange,
-                                    tempFilter,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.accentGreen,
-                                  ),
+                              const SizedBox(height: 16),
+                              StatefulBuilder(
+                                builder: (context, setState) => Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    // All Accounts option
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            tempAccountId = null;
+                                          });
+                                        },
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: tempAccountId == null
+                                                ? LinearGradient(
+                                                    colors: [
+                                                      AppColors.accentGreen,
+                                                      AppColors.accentGreen.withOpacity(0.8),
+                                                    ],
+                                                  )
+                                                : null,
+                                            color: tempAccountId == null
+                                                ? null
+                                                : Colors.white,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: tempAccountId == null
+                                                  ? AppColors.accentGreen
+                                                  : AppColors.border.withOpacity(0.3),
+                                              width: tempAccountId == null ? 0 : 1.5,
+                                            ),
+                                            boxShadow: tempAccountId == null
+                                                ? [
+                                                    BoxShadow(
+                                                      color: AppColors.accentGreen.withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                          child: Text(
+                                            'All Accounts',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: tempAccountId == null
+                                                  ? Colors.white
+                                                  : AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Individual accounts
+                                    for (final account in accounts)
+                                      Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              tempAccountId = account.id;
+                                            });
+                                          },
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(milliseconds: 200),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: tempAccountId == account.id
+                                                  ? LinearGradient(
+                                                      colors: [
+                                                        AppColors.accentGreen,
+                                                        AppColors.accentGreen.withOpacity(0.8),
+                                                      ],
+                                                    )
+                                                  : null,
+                                              color: tempAccountId == account.id
+                                                  ? null
+                                                  : Colors.white,
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: tempAccountId == account.id
+                                                    ? AppColors.accentGreen
+                                                    : AppColors.border.withOpacity(0.3),
+                                                width: tempAccountId == account.id ? 0 : 1.5,
+                                              ),
+                                              boxShadow: tempAccountId == account.id
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: AppColors.accentGreen.withOpacity(0.3),
+                                                        blurRadius: 8,
+                                                        offset: const Offset(0, 2),
+                                                      ),
+                                                    ]
+                                                  : null,
+                                            ),
+                                            child: Text(
+                                              account.name,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: tempAccountId == account.id
+                                                    ? Colors.white
+                                                    : AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
                       ],
-                    );
-                  },
-                ),
 
-                if (accounts.isNotEmpty) ...[
-                  const SizedBox(height: 28),
-                  // Account Section
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.account_balance_wallet,
-                        size: 18,
-                        color: AppColors.accentGreen,
+                      const SizedBox(height: 8),
+
+                      // Apply Button
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.accentGreen,
+                              AppColors.accentGreen.withOpacity(0.9),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accentGreen.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _filter = tempFilter;
+                                _selectedAccountId = tempAccountId;
+                                _customRange = tempCustomRange;
+                              });
+                              Navigator.pop(context);
+                            },
+                            borderRadius: BorderRadius.circular(18),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Apply Filters',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Account',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.3,
+                      const SizedBox(height: 12),
+
+                      // Reset Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _filter = PeriodFilter.month;
+                              _selectedAccountId = null;
+                              _customRange = null;
+                            });
+                            Navigator.pop(context);
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundScaffold,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.border.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.refresh_rounded,
+                                  color: AppColors.textSecondary,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Reset to Default',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  StatefulBuilder(
-                    builder: (context, setState) => Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        // All Accounts option
-                        InkWell(
-                          onTap: () {
-                            setState(() {
-                              tempAccountId = null;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tempAccountId == null
-                                  ? AppColors.accentGreen.withOpacity(0.1)
-                                  : AppColors.backgroundScaffold,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: tempAccountId == null
-                                    ? AppColors.accentGreen
-                                    : AppColors.border.withOpacity(0.5),
-                                width: tempAccountId == null ? 2 : 1,
-                              ),
-                            ),
-                            child: Text(
-                              'All Accounts',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: tempAccountId == null
-                                    ? AppColors.accentGreen
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ), // Individual accounts
-                        for (final account in accounts)
-                          InkWell(
-                            onTap: () {
-                              setState(() {
-                                tempAccountId = account.id;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tempAccountId == account.id
-                                    ? AppColors.accentGreen.withOpacity(0.1)
-                                    : AppColors.backgroundScaffold,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: tempAccountId == account.id
-                                      ? AppColors.accentGreen
-                                      : AppColors.border.withOpacity(0.5),
-                                  width: tempAccountId == account.id ? 2 : 1,
-                                ),
-                              ),
-                              child: Text(
-                                account.name,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: tempAccountId == account.id
-                                      ? AppColors.accentGreen
-                                      : AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 32),
-
-                // Apply Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _filter = tempFilter;
-                        _selectedAccountId = tempAccountId;
-                        _customRange = tempCustomRange;
-                      });
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentGreen,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      'Apply Filters',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
                 ),
-                const SizedBox(height: 8),
-
-                // Reset Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _filter = PeriodFilter.month;
-                        _selectedAccountId = null;
-                        _customRange = null;
-                      });
-                      Navigator.pop(context);
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      'Reset to Default',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
