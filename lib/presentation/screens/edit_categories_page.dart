@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../common/hive_storage.dart';
+import '../../common/premium_constants.dart';
 import '../../models.dart';
 import '../../models/category.dart';
+import '../../services/premium_service.dart';
 import '../../theme/app_colors.dart';
 import 'add_edit_category_page.dart';
 
@@ -181,6 +183,19 @@ class _CategoryListTabState extends State<CategoryListTab> {
       final existingNames = _categories.map((cat) => cat.name.toLowerCase()).toList();
       if (existingNames.contains(category.name.toLowerCase())) {
         _showErrorSnackBar('Category "${category.name}" already exists');
+        return;
+      }
+
+      // Check category limit
+      final isPremium = PremiumService.instance.isPremium;
+      final maxCategories = isPremium 
+          ? PremiumConstants.PREMIUM_MAX_CATEGORIES 
+          : PremiumConstants.FREE_MAX_CATEGORIES;
+      
+      if (_categories.length >= maxCategories) {
+        _showErrorSnackBar(
+          'Category limit reached. You can have up to $maxCategories ${widget.transactionType == TransactionType.expense ? 'expense' : 'income'} categories.${isPremium ? '' : ' Upgrade to Premium for ${PremiumConstants.PREMIUM_MAX_CATEGORIES} categories.'}'
+        );
         return;
       }
 

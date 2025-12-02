@@ -9,6 +9,7 @@ import '../../providers/account_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/premium_provider.dart';
 import '../../common/premium_constants.dart';
+import '../../services/premium_service.dart';
 import 'premium_upgrade_screen.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -82,8 +83,10 @@ class _AddEditAccountScreenState extends State<AddEditAccountScreen> {
           final errorMessage = e.toString();
           if (errorMessage.contains('limit reached')) {
             // Show upgrade dialog
+            final isPremium = PremiumService.instance.isPremium;
+            final maxAccounts = isPremium ? PremiumConstants.PREMIUM_MAX_ACCOUNTS : PremiumConstants.FREE_MAX_ACCOUNTS;
             _showUpgradeDialog(context, 'Account Limit Reached', 
-              'You have reached the limit of ${PremiumConstants.FREE_MAX_ACCOUNTS} accounts. Upgrade to Premium for unlimited accounts.');
+              'You have reached the limit of $maxAccounts accounts.${isPremium ? '' : ' Upgrade to Premium for ${PremiumConstants.PREMIUM_MAX_ACCOUNTS} accounts.'}');
           } else {
             Fluttertoast.showToast(msg: errorMessage, backgroundColor: Colors.red);
           }

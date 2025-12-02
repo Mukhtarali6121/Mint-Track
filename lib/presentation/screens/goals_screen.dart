@@ -2,12 +2,15 @@ import 'package:expense_tracker/common/currency_formatter.dart';
 import 'package:expense_tracker/common/currency_provider.dart';
 import 'package:expense_tracker/models/goal.dart';
 import 'package:expense_tracker/presentation/screens/add_edit_goal_screen.dart';
+import 'package:expense_tracker/presentation/screens/premium_upgrade_screen.dart';
 import 'package:expense_tracker/theme/app_colors.dart';
+import 'package:expense_tracker/theme/app_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../providers/premium_provider.dart';
 import '../../widgets/goal_completion_dialog.dart';
 
 class GoalsScreen extends StatefulWidget {
@@ -367,6 +370,19 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Consumer<PremiumProvider>(
+      builder: (context, premiumProvider, _) {
+        // Check if user has premium access
+        if (!premiumProvider.isPremium) {
+          return _buildPremiumRequiredView();
+        }
+        
+        return _buildGoalsScreen(context);
+      },
+    );
+  }
+
+  Widget _buildGoalsScreen(BuildContext context) {
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final String currencySymbol = currencyProvider.currencySymbol;
     final goalProvider = context.watch<GoalProvider>();
@@ -516,6 +532,292 @@ class _GoalsScreenState extends State<GoalsScreen> {
         backgroundColor: AppColors.accentGreen,
         child: const Icon(Icons.add, color: Colors.white),
       ),
+    );
+  }
+
+  Widget _buildPremiumRequiredView() {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.backgroundScaffold,
+              AppColors.accentGreen.withOpacity(0.05),
+              AppColors.backgroundScaffold,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Custom App Bar
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Goals',
+                        style: AppFonts.appBarTitle.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(width: 48), // Balance the back button
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 40),
+                        // Premium Badge with Star
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppColors.accentGreen,
+                                AppColors.accentGreen.withOpacity(0.7),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.accentGreen.withOpacity(0.3),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                Icons.star_rounded,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                              Positioned(
+                                bottom: 15,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.lock,
+                                    size: 16,
+                                    color: AppColors.accentGreen,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        // Title
+                        Text(
+                          'Unlock Premium Goals',
+                          style: AppFonts.displayMedium.copyWith(
+                            fontWeight: AppFonts.bold,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        // Subtitle
+                        Text(
+                          'Track your savings targets and achieve your financial dreams',
+                          style: AppFonts.bodyLarge.copyWith(
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 48),
+                        // Features List
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              _buildFeatureItem(
+                                icon: Icons.flag_rounded,
+                                text: 'Set multiple savings goals',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildFeatureItem(
+                                icon: Icons.track_changes_rounded,
+                                text: 'Track progress in real-time',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildFeatureItem(
+                                icon: Icons.celebration_rounded,
+                                text: 'Celebrate when you reach targets',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildFeatureItem(
+                                icon: Icons.insights_rounded,
+                                text: 'Get insights on your savings',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        // Upgrade Button
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.accentGreen,
+                                AppColors.accentGreen.withOpacity(0.8),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.accentGreen.withOpacity(0.4),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PremiumUpgradeScreen(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Upgrade to Premium',
+                                  style: AppFonts.buttonText.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: AppFonts.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Trial Info
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.accentGreen.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.celebration_rounded,
+                                size: 20,
+                                color: AppColors.accentGreen,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '7-day free trial • Cancel anytime',
+                                style: AppFonts.bodySmall.copyWith(
+                                  color: AppColors.accentGreen,
+                                  fontWeight: AppFonts.medium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem({required IconData icon, required String text}) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.accentGreen.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.accentGreen,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            text,
+            style: AppFonts.bodyMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -282,7 +282,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     ),
                   ),
                   child: Text(
-                    '$accountCount/${PremiumConstants.FREE_MAX_ACCOUNTS} accounts',
+                    '$accountCount/${isPremium ? PremiumConstants.PREMIUM_MAX_ACCOUNTS : PremiumConstants.FREE_MAX_ACCOUNTS} accounts',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

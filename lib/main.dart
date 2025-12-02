@@ -96,13 +96,13 @@ void main() async {
   // Run account migration if needed
   await AccountMigration.migrateToAccounts();
   
-  // Initialize RevenueCat (Premium Service)
+  // Initialize Razorpay (Premium Service)
   // Note: This will use cached status if initialization fails
   try {
     await PremiumService.instance.initialize();
   } catch (e) {
-    debugPrint('RevenueCat initialization failed: $e');
-    // Continue without premium features if RevenueCat fails
+    debugPrint('Razorpay initialization failed: $e');
+    // Continue without premium features if Razorpay fails
   }
   
   // Check Firebase Auth state (persists across app restarts)

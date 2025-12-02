@@ -120,9 +120,25 @@ class _SetupScreenState extends State<SetupScreen> {
                         onTap: () {
                           setState(() {
                             if (widget.multiSelect) {
-                              isSelected
-                                  ? selectedOptions.remove(option)
-                                  : selectedOptions.add(option);
+                              // Check max selection limit for expense/income categories (step 3 and 4)
+                              // Step 3 = expense categories, Step 4 = income categories
+                              final isCategoryStep = widget.currentStep == 3 || widget.currentStep == 4;
+                              final maxSelections = 10; // Max 10 selections for categories
+                              
+                              if (isSelected) {
+                                selectedOptions.remove(option);
+                              } else {
+                                if (isCategoryStep && selectedOptions.length >= maxSelections) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('You can select up to $maxSelections ${widget.currentStep == 3 ? 'expense' : 'income'} categories'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                selectedOptions.add(option);
+                              }
                             } else {
                               selectedOption = option;
                             }

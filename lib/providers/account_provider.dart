@@ -46,12 +46,19 @@ class AccountProvider extends ChangeNotifier {
       await initialize();
     }
     
-    // Check account limit for free users
-    if (!PremiumService.instance.isPremium) {
-      // Count accounts excluding the default "cash" account
-      final nonCashAccounts = _accounts.where((a) => a.id != 'cash').length;
+    // Count accounts excluding the default "cash" account
+    final nonCashAccounts = _accounts.where((a) => a.id != 'cash').length;
+    
+    // Check account limit based on premium status
+    if (PremiumService.instance.isPremium) {
+      // Premium users have a limit of 2 accounts
+      if (nonCashAccounts >= PremiumConstants.PREMIUM_MAX_ACCOUNTS) {
+        throw Exception('Account limit reached. Premium users can have up to ${PremiumConstants.PREMIUM_MAX_ACCOUNTS} accounts.');
+      }
+    } else {
+      // Free users have a limit of 3 accounts
       if (nonCashAccounts >= PremiumConstants.FREE_MAX_ACCOUNTS) {
-        throw Exception('Account limit reached. Upgrade to Premium for unlimited accounts.');
+        throw Exception('Account limit reached. Upgrade to Premium for ${PremiumConstants.PREMIUM_MAX_ACCOUNTS} accounts.');
       }
     }
     
@@ -71,10 +78,11 @@ class AccountProvider extends ChangeNotifier {
 
   /// Check if user can add more accounts
   bool canAddAccount() {
+    final accountCount = getAccountCount();
     if (PremiumService.instance.isPremium) {
-      return true; // Unlimited for premium
+      return accountCount < PremiumConstants.PREMIUM_MAX_ACCOUNTS;
     }
-    return getAccountCount() < PremiumConstants.FREE_MAX_ACCOUNTS;
+    return accountCount < PremiumConstants.FREE_MAX_ACCOUNTS;
   }
 
   Future<void> updateAccount(Account account) async {

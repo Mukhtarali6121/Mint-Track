@@ -15,6 +15,8 @@ import '../../providers/recurring_transaction_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/premium_provider.dart';
 import 'premium_upgrade_screen.dart';
+import 'subscription_details_screen.dart';
+import 'invoices_screen.dart';
 import '../../services/data_cleanup_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
@@ -752,28 +754,60 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
             Consumer<PremiumProvider>(
               builder: (context, premiumProvider, _) {
                 if (premiumProvider.isPremium) {
-                  return _NavTile(
-                    icon: Icons.star,
-                    label: 'Premium',
-                    subtitle: 'Active subscription',
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentGreen.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'ACTIVE',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.accentGreen,
+                  return Column(
+                    children: [
+                      _NavTile(
+                        icon: Icons.star,
+                        label: 'Premium',
+                        subtitle: 'Active subscription',
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentGreen.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'ACTIVE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.accentGreen,
+                            ),
+                          ),
                         ),
+                        onTap: () {
+                          Navigator.pushNamed(context, '/upgrade');
+                        },
                       ),
-                    ),
-                    onTap: () {
-                      Navigator.pushNamed(context, '/upgrade');
-                    },
+                      // Subscription Details
+                      _NavTile(
+                        icon: Icons.subscriptions_rounded,
+                        label: 'Subscription',
+                        subtitle: 'Manage your subscription',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SubscriptionDetailsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      // Invoices
+                      _NavTile(
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Invoices',
+                        subtitle: 'View payment history',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const InvoicesScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   );
                 } else {
                   return _NavTile(
@@ -819,40 +853,6 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                 label: 'Recurring Transactions',
                 route: '/recurring',
               ),
-            // Goals - only show for premium users
-            Consumer<PremiumProvider>(
-              builder: (context, premiumProvider, _) {
-                if (premiumProvider.isPremium) {
-                  return _NavTile(
-                    icon: Icons.flag_outlined,
-                    label: 'Goals',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const GoalsScreen(),
-                        ),
-                      );
-                    },
-                  );
-                } else {
-                  return _NavTile(
-                    icon: Icons.flag_outlined,
-                    label: 'Goals',
-                    subtitle: 'Premium feature',
-                    trailing: const Icon(Icons.lock, size: 16),
-                    onTap: () {
-                      Navigator.pushNamed(context, '/upgrade');
-                    },
-                  );
-                }
-              },
-            ),
-            _NavTile(
-              icon: Icons.repeat,
-              label: 'Recurring Transactions',
-              route: '/recurring',
-            ),
             // _NavTile(icon: Icons.schedule, label: 'Scheduled Transactions', route: '/scheduled'),
             _NavTile(
               leading: SizedBox(
