@@ -32,7 +32,11 @@ class PremiumService {
 
   /// Initialize Razorpay SDK
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      // If already initialized, refresh premium status for current user
+      await _checkPremiumStatus();
+      return;
+    }
 
     try {
       _razorpay = Razorpay();
@@ -50,6 +54,15 @@ class PremiumService {
       _isPremium = false;
       _isInitialized = true;
     }
+  }
+
+  /// Reset premium status (call on logout)
+  Future<void> reset() async {
+    debugPrint('PremiumService: Resetting premium status');
+    _isPremium = false;
+    _currentSubscription = null;
+    // Note: We don't reset _isInitialized or dispose Razorpay here
+    // as the service may be reused for the next user
   }
 
   /// Check current premium status from Firestore

@@ -8,6 +8,7 @@ import 'package:expense_tracker/common/hive_storage.dart';
 import 'package:expense_tracker/models/category.dart';
 import 'package:expense_tracker/presentation/screens/edit_transaction.dart';
 import 'package:expense_tracker/providers/account_provider.dart';
+import 'package:expense_tracker/services/category_icon_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
@@ -1600,31 +1601,5 @@ TransactionCategory _getCategoryFromString(String categoryName) {
 }
 
 String _getIconPathFromCategoryName(String categoryName) {
-  const Map<String, String> iconMap = {
-    'Food': 'assets/images/ic_vector_food.svg',
-    'Drinks': 'assets/images/ic_vector_drink.svg',
-    'Transportation': 'assets/images/ic_vector_transportation.svg',
-    'Housing': 'assets/images/ic_vector_home.svg',
-    'Shopping': 'assets/images/ic_vector_shopping_bag.svg',
-    'Health': 'assets/images/ic_vector_health.svg',
-    'Fitness': 'assets/images/ic_vector_fitness.svg',
-    'Entertainment': 'assets/images/ic_vector_entertainment.svg',
-    'Games': 'assets/images/ic_vector_game.svg',
-    'Education': 'assets/images/ic_vector_education.svg',
-    'Loans': 'assets/images/ic_vector_loan.svg',
-    'Savings': 'assets/images/ic_vector_investment.svg',
-    'Investments': 'assets/images/ic_vector_investment.svg',
-    'Travel': 'assets/images/ic_vector_travel.svg',
-    'Gifts': 'assets/images/ic_vector_gifts.svg',
-    'Donations': 'assets/images/ic_vector_donate.svg',
-    'Beauty': 'assets/images/ic_vector_beauty.svg',
-    'Taxes': 'assets/images/ic_vector_tax.svg',
-    'Others': 'assets/images/ic_vector_other.svg',
-    'Salary': 'assets/images/ic_vector_salary.svg',
-    'Business': 'assets/images/ic_vector_business.svg',
-    'Interest Income': 'assets/images/ic_vector_interest_income.svg',
-    'Rental Income': 'assets/images/ic_vector_rental_income.svg',
-  };
-
-  return iconMap[categoryName] ?? 'assets/images/ic_vector_other.svg';
+  return CategoryIconService.getIconPath(categoryName);
 }

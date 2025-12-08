@@ -22,6 +22,7 @@ import '../../models/category.dart';
 import 'search_screen.dart';
 import '../../services/notification_service.dart';
 import '../../services/update_check_service.dart';
+import '../../services/category_icon_service.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/recurring_transactions_widget.dart';
 import '../../providers/recurring_transaction_provider.dart';
@@ -2278,37 +2279,7 @@ TransactionCategory _getCategoryFromString(String categoryName) {
 
 // Helper method to get SVG icon path from category name
 String _getIconPathFromCategoryName(String categoryName) {
-  // Map category names to their corresponding SVG file paths
-  const Map<String, String> iconMap = {
-    // Expense categories
-    'Food': 'assets/images/ic_vector_food.svg',
-    'Drinks': 'assets/images/ic_vector_drink.svg',
-    'Transportation': 'assets/images/ic_vector_transportation.svg',
-    'Housing': 'assets/images/ic_vector_home.svg',
-    'Shopping': 'assets/images/ic_vector_shopping_bag.svg',
-    'Health': 'assets/images/ic_vector_health.svg',
-    'Fitness': 'assets/images/ic_vector_fitness.svg',
-    'Entertainment': 'assets/images/ic_vector_entertainment.svg',
-    'Games': 'assets/images/ic_vector_game.svg',
-    'Education': 'assets/images/ic_vector_education.svg',
-    'Loans': 'assets/images/ic_vector_loan.svg',
-    'Savings': 'assets/images/ic_vector_investment.svg',
-    'Investments': 'assets/images/ic_vector_investment.svg',
-    'Travel': 'assets/images/ic_vector_travel.svg',
-    'Gifts': 'assets/images/ic_vector_gifts.svg',
-    'Donations': 'assets/images/ic_vector_donate.svg',
-    'Beauty': 'assets/images/ic_vector_beauty.svg',
-    'Taxes': 'assets/images/ic_vector_tax.svg',
-    'Others': 'assets/images/ic_vector_other.svg',
-
-    // Income categories
-    'Salary': 'assets/images/ic_vector_salary.svg',
-    'Business': 'assets/images/ic_vector_business.svg',
-    'Interest Income': 'assets/images/ic_vector_interest_income.svg',
-    'Rental Income': 'assets/images/ic_vector_rental_income.svg',
-  };
-
-  return iconMap[categoryName] ?? 'assets/images/ic_vector_other.svg';
+  return CategoryIconService.getIconPath(categoryName);
 }
 
 /// Animated card with tap feedback

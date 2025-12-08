@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/category.dart';
 import '../../theme/app_colors.dart';
+import '../../services/category_icon_service.dart';
 
 class AddEditCategoryPage extends StatefulWidget {
   final Category? existingCategory;
@@ -25,30 +26,34 @@ class _AddEditCategoryPageState extends State<AddEditCategoryPage> {
   late Color _selectedColor;
   late int _selectedPosition;
 
-  final List<String> _availableIcons = [
-    'food', 'drinks', 'transportation', 'housing', 'shopping',
-    'health', 'fitness', 'entertainment', 'games', 'education',
-    'loans', 'savings', 'investments', 'travel', 'gifts',
-    'donations', 'beauty', 'taxes', 'salary', 'business',
-    'interest income', 'rental income', 'others'
-  ];
+  List<String> get _availableIcons => CategoryIconService.getAvailableIconNames();
 
   final List<Color> _availableColors = [
-    Colors.blue.shade200,
-    Colors.green.shade200,
-    Colors.orange.shade200,
-    Colors.purple.shade200,
-    Colors.pink.shade200,
-    Colors.teal.shade200,
-    Colors.indigo.shade200,
-    Colors.cyan.shade200,
-    Colors.lime.shade200,
-    Colors.amber.shade200,
-    Colors.red.shade200,
-    Colors.deepOrange.shade200,
-    Colors.deepPurple.shade200,
-    Colors.lightBlue.shade200,
-    Colors.lightGreen.shade200,
+    // Distinct color palette - no duplicates
+    const Color(0xFF42A5F5), // Blue
+    const Color(0xFF66BB6A), // Green
+    const Color(0xFFFFA726), // Orange
+    const Color(0xFFAB47BC), // Purple
+    const Color(0xFFEC407A), // Pink
+    const Color(0xFF26A69A), // Teal
+    const Color(0xFF5C6BC0), // Indigo
+    const Color(0xFF26C6DA), // Cyan
+    const Color(0xFFFFCA28), // Amber
+    const Color(0xFFEF5350), // Red
+    const Color(0xFFFF7043), // Deep Orange
+    const Color(0xFF7E57C2), // Deep Purple
+    const Color(0xFF8D6E63), // Brown
+    const Color(0xFF78909C), // Blue Grey
+    const Color(0xFF29B6F6), // Light Blue
+    const Color(0xFF81C784), // Light Green
+    const Color(0xFFD4E157), // Lime
+    const Color(0xFFFFEB3B), // Yellow
+    const Color(0xFFBA68C8), // Light Purple
+    const Color(0xFF4DD0E1), // Light Cyan
+    const Color(0xFFFFB74D), // Light Orange
+    const Color(0xFFF06292), // Light Pink
+    const Color(0xFF9575CD), // Medium Purple
+    const Color(0xFF90A4AE), // Grey
   ];
 
   @override
@@ -69,37 +74,7 @@ class _AddEditCategoryPageState extends State<AddEditCategoryPage> {
   }
 
   String _getIconPath(String iconName) {
-    // Map category names to their corresponding SVG file paths
-    const Map<String, String> iconMap = {
-      // Expense categories
-      'food': 'assets/images/ic_vector_food.svg',
-      'drinks': 'assets/images/ic_vector_drink.svg',
-      'transportation': 'assets/images/ic_vector_transportation.svg',
-      'housing': 'assets/images/ic_vector_home.svg',
-      'shopping': 'assets/images/ic_vector_shopping_bag.svg',
-      'health': 'assets/images/ic_vector_health.svg',
-      'fitness': 'assets/images/ic_vector_fitness.svg',
-      'entertainment': 'assets/images/ic_vector_entertainment.svg',
-      'games': 'assets/images/ic_vector_game.svg',
-      'education': 'assets/images/ic_vector_education.svg',
-      'loans': 'assets/images/ic_vector_loan.svg',
-      'savings': 'assets/images/ic_vector_investment.svg',
-      'investments': 'assets/images/ic_vector_investment.svg',
-      'travel': 'assets/images/ic_vector_travel.svg',
-      'gifts': 'assets/images/ic_vector_gifts.svg',
-      'donations': 'assets/images/ic_vector_donate.svg',
-      'beauty': 'assets/images/ic_vector_beauty.svg',
-      'taxes': 'assets/images/ic_vector_tax.svg',
-      'others': 'assets/images/ic_vector_other.svg',
-      
-      // Income categories
-      'salary': 'assets/images/ic_vector_salary.svg',
-      'business': 'assets/images/ic_vector_business.svg',
-      'interest income': 'assets/images/ic_vector_interest_income.svg',
-      'rental income': 'assets/images/ic_vector_rental_income.svg',
-    };
-
-    return iconMap[iconName.toLowerCase()] ?? 'assets/images/ic_vector_other.svg';
+    return CategoryIconService.getIconPath(iconName);
   }
 
   void _saveCategory() {

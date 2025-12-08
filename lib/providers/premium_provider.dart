@@ -305,4 +305,14 @@ class PremiumProvider extends ChangeNotifier {
     _subscriptionPlans = PremiumService.instance.getSubscriptionPlans();
     notifyListeners();
   }
+
+  /// Reset premium provider (call on logout)
+  Future<void> reset() async {
+    debugPrint('PremiumProvider: Resetting premium status');
+    _isPremium = false;
+    _currentSubscription = null;
+    _isInitialized = false;
+    await PremiumService.instance.reset();
+    notifyListeners();
+  }
 }

@@ -198,6 +198,14 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       await goalProvider.resetAndInitialize();
     }
 
+    // Reset premium status
+    try {
+      final premiumProvider = context.read<PremiumProvider>();
+      await premiumProvider.reset();
+    } catch (e) {
+      debugPrint('Error resetting premium provider: $e');
+    }
+
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(

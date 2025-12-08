@@ -20,6 +20,7 @@ import '../../../services/data_cleanup_service.dart';
 import '../../../providers/account_provider.dart';
 import '../../../providers/goal_provider.dart';
 import '../../../providers/recurring_transaction_provider.dart';
+import '../../../providers/premium_provider.dart';
 import '../../../models/account.dart';
 import '../../../common/account_hive_storage.dart';
 import '../../../common/account_migration.dart';
@@ -235,6 +236,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         final recurringProvider = context.read<RecurringTransactionProvider>();
         await recurringProvider.resetAndInitialize();
         
+        // Refresh premium status for the new user
+        try {
+          final premiumProvider = context.read<PremiumProvider>();
+          await premiumProvider.refreshPremiumStatus();
+        } catch (e) {
+          debugPrint('Error refreshing premium status: $e');
+        }
+        
         // Run migration if needed (will create Cash account if doesn't exist)
         await AccountMigration.migrateToAccounts();
       }
@@ -401,6 +410,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       
       // Reset and initialize RecurringTransactionProvider
       await recurringProvider.resetAndInitialize();
+      
+      // Refresh premium status for the new user
+      try {
+        final premiumProvider = context.read<PremiumProvider>();
+        await premiumProvider.refreshPremiumStatus();
+      } catch (e) {
+        debugPrint('Error refreshing premium status: $e');
+      }
       
       // Run migration if needed (will create Cash account if doesn't exist)
       await AccountMigration.migrateToAccounts();
