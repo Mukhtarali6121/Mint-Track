@@ -5,7 +5,9 @@ import '../models/recurring_transaction.dart';
 
 class RecurringTransactionHiveStorage {
   static const String _recurringTransactionBoxName = 'recurring_transactions';
+  static const String _deletedRecurringBoxName = 'deleted_recurring_transactions';
   static Box<RecurringTransaction>? _recurringTransactionBox;
+  static Box<String>? _deletedBox;
 
   /// Initialize recurring transaction box
   static Future<void> init() async {
@@ -49,6 +51,10 @@ class RecurringTransactionHiveStorage {
         rethrow;
       }
     }
+
+    if (_deletedBox == null || !_deletedBox!.isOpen) {
+      _deletedBox = await Hive.openBox<String>(_deletedRecurringBoxName);
+    }
   }
 
   /// Get current user ID
@@ -80,6 +86,35 @@ class RecurringTransactionHiveStorage {
     debugPrint('RecurringTransaction updated: ${recurringWithUserId.id}');
   }
 
+  /// Track a deleted recurring transaction ID for cloud sync
+  static Future<void> _trackDeletedRecurring(String recurringId, String userId) async {
+    if (_deletedBox == null || !_deletedBox!.isOpen) {
+      _deletedBox = await Hive.openBox<String>(_deletedRecurringBoxName);
+    }
+    await _deletedBox!.put(recurringId, userId);
+  }
+
+  /// Get pending deleted recurring transaction IDs for current user
+  static List<String> getPendingDeletedIds() {
+    if (_deletedBox == null || !_deletedBox!.isOpen) return [];
+    final userId = _getUserId();
+    final List<String> result = [];
+    for (final entry in _deletedBox!.toMap().entries) {
+      if (entry.value == userId) {
+        result.add(entry.key.toString());
+      }
+    }
+    return result;
+  }
+
+  /// Clear synced deleted recurring transaction IDs
+  static Future<void> clearDeletedIds(List<String> ids) async {
+    if (_deletedBox == null || !_deletedBox!.isOpen) return;
+    for (final id in ids) {
+      await _deletedBox!.delete(id);
+    }
+  }
+
   /// Delete a recurring transaction from Hive
   static Future<void> deleteRecurringTransaction(String id) async {
     await init();
@@ -87,6 +122,9 @@ class RecurringTransactionHiveStorage {
       throw Exception('RecurringTransaction box not initialized');
     }
     
+    final recurring = _recurringTransactionBox!.get(id);
+    final userId = recurring?.userId ?? _getUserId();
+    await _trackDeletedRecurring(id, userId);
     await _recurringTransactionBox!.delete(id);
     debugPrint('RecurringTransaction deleted: $id');
   }
@@ -190,10 +228,29 @@ class RecurringTransactionHiveStorage {
     }
   }
 
+  /// Mark multiple recurring transactions as synced using atomic putAll
+  static Future<void> markMultipleAsSynced(List<String> ids) async {
+    await init();
+    if (_recurringTransactionBox == null) {
+      throw Exception('RecurringTransaction box not initialized');
+    }
+    
+    final Map<String, RecurringTransaction> updates = {};
+    for (final id in ids) {
+      final recurring = _recurringTransactionBox!.get(id);
+      if (recurring != null) {
+        updates[id] = recurring.copyWith(isSynced: true);
+      }
+    }
+    if (updates.isNotEmpty) {
+      await _recurringTransactionBox!.putAll(updates);
+    }
+  }
+
   /// Get sync statistics
   static Map<String, int> getSyncStatistics() {
     if (_recurringTransactionBox == null || !_recurringTransactionBox!.isOpen) {
-      return {'total': 0, 'synced': 0, 'unsynced': 0};
+      return {'total': 0, 'synced': 0, 'unsynced': 0, 'pendingDeletions': 0};
     }
     
     final userId = _getUserId();
@@ -203,11 +260,13 @@ class RecurringTransactionHiveStorage {
     
     final synced = allRecurring.where((recurring) => recurring.isSynced).length;
     final unsynced = allRecurring.length - synced;
+    final pendingDeletions = getPendingDeletedIds().length;
     
     return {
       'total': allRecurring.length,
       'synced': synced,
       'unsynced': unsynced,
+      'pendingDeletions': pendingDeletions,
     };
   }
 

@@ -112,7 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _deleteBarAnimation = CurvedAnimation(
       parent: _deleteBarController,
       curve: Curves.easeOutCubic,
-        );
+    );
 
     _fadeController.forward();
     _slideController.forward();
@@ -257,11 +257,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Check and process recurring transactions
   Future<void> _checkRecurringTransactions() async {
     if (!FeatureFlags.recurringTransactionsFeatureEnabled) return;
-    
+
     try {
       // Wait a bit to ensure providers are initialized
       await Future.delayed(const Duration(seconds: 1));
-      
+
       if (!mounted) return;
 
       final recurringProvider = context.read<RecurringTransactionProvider>();
@@ -283,7 +283,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-
   @override
   void dispose() {
     _fadeController.dispose();
@@ -298,9 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Transactions'),
         content: Text(
           'Are you sure you want to delete ${_selectedTransactionIds.length} transaction${_selectedTransactionIds.length > 1 ? 's' : ''}? This action cannot be undone.',
@@ -323,11 +320,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       final provider = context.read<TransactionProvider>();
       final count = _selectedTransactionIds.length;
       final idsToDelete = Set<String>.from(_selectedTransactionIds);
-      
+
       for (final id in idsToDelete) {
         await provider.remove(id);
       }
-      
+
       _deleteBarController.reverse().then((_) {
         if (mounted) {
           setState(() {
@@ -340,9 +337,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '$count transaction${count > 1 ? 's' : ''} deleted',
-            ),
+            content: Text('$count transaction${count > 1 ? 's' : ''} deleted'),
             backgroundColor: Colors.green,
           ),
         );
@@ -356,8 +351,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       final provider = context.read<TransactionProvider>();
       final syncStats = provider.getSyncStatistics();
+      final unsyncedCount = syncStats['unsynced'] ?? 0;
+      final pendingDeletions = syncStats['pendingDeletions'] ?? 0;
 
-      if (syncStats['unsynced'] == 0) {
+      if (unsyncedCount == 0 && pendingDeletions == 0) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -372,11 +369,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       if (mounted) {
         if (success) {
+          final msg = unsyncedCount > 0
+              ? 'Successfully synced $unsyncedCount transaction(s)!'
+              : 'Successfully synced $pendingDeletions deletion(s)!';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Successfully synced ${syncStats['unsynced']} transactions!',
-              ),
+              content: Text(msg),
               backgroundColor: Colors.green,
             ),
           );
@@ -455,46 +453,209 @@ class _DashboardScreenState extends State<DashboardScreen>
           automaticallyImplyLeading: false,
           // Prevent back button
           title: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: Text(
-              'Dashboard',
-              style: AppFonts.appBarTitle.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Text(
+                'Dashboard',
+                style: AppFonts.appBarTitle.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF8F9F8), Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
-            stops: [0.0, 0.5, 1.0],
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF8F9F8), Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
+              stops: [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16.0,0.0,16.0,16.0),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Column(
-                    children: [
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: Container(
-                            width: double.infinity,
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Column(
+                      children: [
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _selectedAccountId == null
+                                              ? 'Total Balance'
+                                              : '${accountProvider.getAccount(_selectedAccountId!)?.name ?? "Account"} Balance',
+                                          style: AppFonts.titleLarge.copyWith(
+                                            color: AppColors.textSecondary,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          CurrencyFormatter.format(
+                                            amount: _selectedAccountId == null
+                                                ? (income - expense)
+                                                : accountBalance,
+                                            symbol: currencySymbol,
+                                            decimalDigits: 1,
+                                            spaceBetween: true,
+                                          ),
+                                          style: AppFonts.titleLarge.copyWith(
+                                            color:
+                                                (_selectedAccountId == null
+                                                        ? (income - expense)
+                                                        : accountBalance) >=
+                                                    0
+                                                ? AppColors.accentGreen
+                                                : AppColors.error,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 28,
+                                            letterSpacing: -0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildSummaryTile(
+                                            label: 'Expenses',
+                                            amount: expense,
+                                            backgroundColor: AppColors.error,
+                                            icon: Icons.arrow_upward,
+                                            iconColor: Colors.white,
+                                            currency: currencySymbol,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: _buildSummaryTile(
+                                            label: 'Income',
+                                            amount: income,
+                                            backgroundColor:
+                                                AppColors.accentGreen,
+                                            icon: Icons.arrow_downward,
+                                            iconColor: Colors.white,
+                                            currency: currencySymbol,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Recurring Transactions Widget
+                        if (FeatureFlags
+                            .recurringTransactionsFeatureEnabled) ...[
+                          Consumer<RecurringTransactionProvider>(
+                            builder: (context, recurringProvider, _) {
+                              final pendingRecurring = recurringProvider
+                                  .getDueRecurringTransactions()
+                                  .where((recurring) => !recurring.autoApprove)
+                                  .toList();
+                              final activeRecurring = recurringProvider
+                                  .getActiveRecurringTransactions()
+                                  .take(3)
+                                  .toList();
+
+                              if (pendingRecurring.isEmpty &&
+                                  activeRecurring.isEmpty) {
+                                return const SizedBox(height: 16);
+                              }
+                              return const RecurringTransactionsWidget();
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+
+                        // Sync Status Indicator
+                        // Consumer<TransactionProvider>(
+                        //   builder: (context, provider, child) {
+                        //     final syncStats = provider.getSyncStatistics();
+                        //     final unsyncedCount = syncStats['unsynced'] ?? 0;
+                        //
+                        //     if (unsyncedCount > 0) {
+                        //       return Container(
+                        //         margin: const EdgeInsets.only(bottom: 16),
+                        //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        //         decoration: BoxDecoration(
+                        //           color: Colors.orange.shade50,
+                        //           borderRadius: BorderRadius.circular(12),
+                        //           border: Border.all(color: Colors.orange.shade200),
+                        //         ),
+                        //         child: Row(
+                        //           children: [
+                        //             Icon(Icons.cloud_off, color: Colors.orange.shade600, size: 20),
+                        //             const SizedBox(width: 8),
+                        //             Expanded(
+                        //               child: Text(
+                        //                 '$unsyncedCount transactions not synced',
+                        //                 style: TextStyle(
+                        //                   color: Colors.orange.shade700,
+                        //                   fontWeight: FontWeight.w500,
+                        //                 ),
+                        //               ),
+                        //             ),
+                        //             TextButton(
+                        //               onPressed: _isSyncing ? null : _syncTransactions,
+                        //               child: Text(
+                        //                 'Sync Now',
+                        //                 style: TextStyle(
+                        //                   color: Colors.orange.shade700,
+                        //                   fontWeight: FontWeight.bold,
+                        //                 ),
+                        //               ),
+                        //             ),
+                        //           ],
+                        //         ),
+                        //       );
+                        //     }
+                        //
+                        //     return const SizedBox.shrink();
+                        //   },
+                        // ),
+                        // Recent Transactions Header with Search and Filter (only show if transactions exist)
+                        if (allTransactions.isNotEmpty) ...[
+                          Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
@@ -506,415 +667,300 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ),
                               ],
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                children: [
-                                  Column(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header and Search/Filter Section
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.center,
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        _selectedAccountId == null
-                                            ? 'Total Balance'
-                                            : '${accountProvider.getAccount(_selectedAccountId!)?.name ?? "Account"} Balance',
-                                        style: AppFonts.titleLarge.copyWith(
-                                          color: AppColors.textSecondary,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        CurrencyFormatter.format(
-                                          amount: _selectedAccountId == null
-                                              ? (income - expense)
-                                              : accountBalance,
-                                          symbol: currencySymbol,
-                                          decimalDigits: 1,
-                                          spaceBetween: true,
-                                        ),
-                                        style: AppFonts.titleLarge.copyWith(
-                                          color:
-                                              (_selectedAccountId == null
-                                                      ? (income - expense)
-                                                      : accountBalance) >=
-                                                  0
-                                              ? AppColors.accentGreen
-                                              : AppColors.error,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 28,
-                                          letterSpacing: -0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildSummaryTile(
-                                          label: 'Expenses',
-                                          amount: expense,
-                                          backgroundColor: AppColors.error,
-                                          icon: Icons.arrow_upward,
-                                          iconColor: Colors.white,
-                                          currency: currencySymbol,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _buildSummaryTile(
-                                          label: 'Income',
-                                          amount: income,
-                                          backgroundColor:
-                                              AppColors.accentGreen,
-                                          icon: Icons.arrow_downward,
-                                          iconColor: Colors.white,
-                                          currency: currencySymbol,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Recurring Transactions Widget
-                      if (FeatureFlags.recurringTransactionsFeatureEnabled) ...[
-                        Consumer<RecurringTransactionProvider>(
-                          builder: (context, recurringProvider, _) {
-                            final pendingRecurring = recurringProvider.getDueRecurringTransactions()
-                                .where((recurring) => !recurring.autoApprove)
-                                .toList();
-                            final activeRecurring = recurringProvider.getActiveRecurringTransactions()
-                                .take(3)
-                                .toList();
-                            
-                            if (pendingRecurring.isEmpty && activeRecurring.isEmpty) {
-                              return const SizedBox(height: 16);
-                            }
-                            return const RecurringTransactionsWidget();
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-
-                      // Sync Status Indicator
-                      // Consumer<TransactionProvider>(
-                      //   builder: (context, provider, child) {
-                      //     final syncStats = provider.getSyncStatistics();
-                      //     final unsyncedCount = syncStats['unsynced'] ?? 0;
-                      //
-                      //     if (unsyncedCount > 0) {
-                      //       return Container(
-                      //         margin: const EdgeInsets.only(bottom: 16),
-                      //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      //         decoration: BoxDecoration(
-                      //           color: Colors.orange.shade50,
-                      //           borderRadius: BorderRadius.circular(12),
-                      //           border: Border.all(color: Colors.orange.shade200),
-                      //         ),
-                      //         child: Row(
-                      //           children: [
-                      //             Icon(Icons.cloud_off, color: Colors.orange.shade600, size: 20),
-                      //             const SizedBox(width: 8),
-                      //             Expanded(
-                      //               child: Text(
-                      //                 '$unsyncedCount transactions not synced',
-                      //                 style: TextStyle(
-                      //                   color: Colors.orange.shade700,
-                      //                   fontWeight: FontWeight.w500,
-                      //                 ),
-                      //               ),
-                      //             ),
-                      //             TextButton(
-                      //               onPressed: _isSyncing ? null : _syncTransactions,
-                      //               child: Text(
-                      //                 'Sync Now',
-                      //                 style: TextStyle(
-                      //                   color: Colors.orange.shade700,
-                      //                   fontWeight: FontWeight.bold,
-                      //                 ),
-                      //               ),
-                      //             ),
-                      //           ],
-                      //         ),
-                      //       );
-                      //     }
-                      //
-                      //     return const SizedBox.shrink();
-                      //   },
-                      // ),
-                      // Recent Transactions Header with Search and Filter (only show if transactions exist)
-
-                      if (allTransactions.isNotEmpty) ...[
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header and Search/Filter Section
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header Row with Title and Date Range
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "Transactions",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                  // Date Range Indicator
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accentGreen.withOpacity(
-                                        0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.calendar_today,
-                                          size: 12,
-                                          color: AppColors.accentGreen,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _getDateRangeText(),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.accentGreen,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Search and Filter Row
-                              Row(
-                                children: [
-                                  // Search Bar
-                                  Expanded(
-                                    child: InkWell(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          CustomPageRoute(
-                                            child: const SearchScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: Container(
-                                        height: 44,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.backgroundScaffold,
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          border: Border.all(
-                                            color: AppColors.border.withOpacity(
-                                              0.6,
-                                            ),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.search,
-                                              size: 20,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Text(
-                                              'Search transactions...',
-                                              style: TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8), // Filter Button
-                                  InkWell(
-                                    onTap: () =>
-                                        _showFilterBottomSheet(context),
-                                    child: Container(
-                                      height: 40,
-                                      width: 40,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.backgroundScaffold,
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: AppColors.border.withOpacity(
-                                            0.6,
-                                          ),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        Icons.tune,
-                                        size: 20,
-                                        color: AppColors.accentGreen,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                              // Delete button when in selection mode
-                              if (_isSelectionMode && _selectedTransactionIds.isNotEmpty && _deleteBarAnimation != null)
-                                SizeTransition(
-                                  sizeFactor: _deleteBarAnimation!,
-                                  child: FadeTransition(
-                                    opacity: _deleteBarAnimation!,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0, -1),
-                                        end: Offset.zero,
-                                      ).animate(_deleteBarAnimation!),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.1),
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: AppColors.border.withOpacity(0.2),
-                                              width: 1,
+                                      // Header Row with Title and Date Range
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "Transactions",
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.textPrimary,
+                                              letterSpacing: -0.3,
                                             ),
                                           ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              '${_selectedTransactionIds.length} selected',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.textPrimary,
-                                              ),
+                                          // Date Range Indicator
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
                                             ),
-                                            Row(
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentGreen
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                TextButton.icon(
-                                                  onPressed: () {
-                                                    _deleteBarController.reverse().then((_) {
-                                                      if (mounted) {
-                                                        setState(() {
-                                                          _isSelectionMode = false;
-                                                          _selectedTransactionIds.clear();
-                                                        });
-                                                      }
-                                                    });
-                                                  },
-                                                  icon: const Icon(Icons.close, size: 18),
-                                                  label: const Text('Cancel'),
-                                                  style: TextButton.styleFrom(
-                                                    foregroundColor: AppColors.textSecondary,
-                                                  ),
+                                                Icon(
+                                                  Icons.calendar_today,
+                                                  size: 12,
+                                                  color: AppColors.accentGreen,
                                                 ),
-                                                const SizedBox(width: 8),
-                                                ElevatedButton.icon(
-                                                  onPressed: () => _deleteSelectedTransactions(),
-                                                  icon: const Icon(Icons.delete, size: 18),
-                                                  label: const Text('Delete'),
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: Colors.red,
-                                                    foregroundColor: Colors.white,
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 8,
-                                                    ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  _getDateRangeText(),
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    color:
+                                                        AppColors.accentGreen,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+
+                                      // Search and Filter Row
+                                      Row(
+                                        children: [
+                                          // Search Bar
+                                          Expanded(
+                                            child: InkWell(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  CustomPageRoute(
+                                                    child: const SearchScreen(),
+                                                  ),
+                                                );
+                                              },
+                                              child: Container(
+                                                height: 44,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors
+                                                      .backgroundScaffold,
+                                                  borderRadius:
+                                                      BorderRadius.circular(14),
+                                                  border: Border.all(
+                                                    color: AppColors.border
+                                                        .withOpacity(0.6),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.search,
+                                                      size: 20,
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Text(
+                                                      'Search transactions...',
+                                                      style: TextStyle(
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(
+                                            width: 8,
+                                          ), // Filter Button
+                                          InkWell(
+                                            onTap: () =>
+                                                _showFilterBottomSheet(context),
+                                            child: Container(
+                                              height: 40,
+                                              width: 40,
+                                              decoration: BoxDecoration(
+                                                color: AppColors
+                                                    .backgroundScaffold,
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                border: Border.all(
+                                                  color: AppColors.border
+                                                      .withOpacity(0.6),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                Icons.tune,
+                                                size: 20,
+                                                color: AppColors.accentGreen,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Delete button when in selection mode
+                                if (_isSelectionMode &&
+                                    _selectedTransactionIds.isNotEmpty &&
+                                    _deleteBarAnimation != null)
+                                  SizeTransition(
+                                    sizeFactor: _deleteBarAnimation!,
+                                    child: FadeTransition(
+                                      opacity: _deleteBarAnimation!,
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, -1),
+                                          end: Offset.zero,
+                                        ).animate(_deleteBarAnimation!),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: AppColors.border
+                                                    .withOpacity(0.2),
+                                                width: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '${_selectedTransactionIds.length} selected',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                              Row(
+                                                children: [
+                                                  TextButton.icon(
+                                                    onPressed: () {
+                                                      _deleteBarController
+                                                          .reverse()
+                                                          .then((_) {
+                                                            if (mounted) {
+                                                              setState(() {
+                                                                _isSelectionMode =
+                                                                    false;
+                                                                _selectedTransactionIds
+                                                                    .clear();
+                                                              });
+                                                            }
+                                                          });
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons.close,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text('Cancel'),
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor: AppColors
+                                                          .textSecondary,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  ElevatedButton.icon(
+                                                    onPressed: () =>
+                                                        _deleteSelectedTransactions(),
+                                                    icon: const Icon(
+                                                      Icons.delete,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text('Delete'),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 8,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
+                                // Transaction List inside the same white container
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    16,
+                                  ),
+                                  child: items.isEmpty
+                                      ? _buildEmptyState(
+                                          allTransactions.isEmpty,
+                                        )
+                                      : _buildGroupedTransactionList(
+                                          items,
+                                          currencySymbol,
+                                        ),
                                 ),
-                              // Transaction List inside the same white container
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                child: items.isEmpty
-                                    ? _buildEmptyState(allTransactions.isEmpty)
-                                    : _buildGroupedTransactionList(items, currencySymbol),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ] else ...[
-                        // Show empty state when no transactions exist
-                      items.isEmpty
-                          ? _buildEmptyState(allTransactions.isEmpty)
-                          : _buildGroupedTransactionList(items, currencySymbol),
-                      ],
+                        ] else ...[
+                          // Show empty state when no transactions exist
+                          items.isEmpty
+                              ? _buildEmptyState(allTransactions.isEmpty)
+                              : _buildGroupedTransactionList(
+                                  items,
+                                  currencySymbol,
+                                ),
+                        ],
 
-                      const SizedBox(height: 80),
-                      // Extra padding at bottom for FAB
-                    ],
+                        const SizedBox(height: 80),
+                        // Extra padding at bottom for FAB
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
-      ),
-      floatingActionButton: allTransactions.isEmpty
-          ? null
-          : AnimatedButton(
-              onPressed: () => Navigator.of(context).pushNamed('/edit'),
-              child: FloatingActionButton(
+        floatingActionButton: allTransactions.isEmpty
+            ? null
+            : AnimatedButton(
                 onPressed: () => Navigator.of(context).pushNamed('/edit'),
-                backgroundColor: AppColors.accentGreen,
-                child: const Icon(Icons.add, color: Colors.white),
+                child: FloatingActionButton(
+                  onPressed: () => Navigator.of(context).pushNamed('/edit'),
+                  backgroundColor: AppColors.accentGreen,
+                  child: const Icon(Icons.add, color: Colors.white),
+                ),
               ),
-            ),
       ),
     );
 
@@ -1009,7 +1055,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     AnimatedButton(
                       onPressed: () => Navigator.of(context).pushNamed('/edit'),
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pushNamed('/edit'),
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/edit'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accentGreen,
                           foregroundColor: Colors.white,
@@ -1023,20 +1070,21 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ),
                         ),
                         icon: const Icon(
-                        Icons.add_circle_outline,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      label: const Text(
-                        'Add Your First Transaction',
-                        style: TextStyle(
+                          Icons.add_circle_outline,
                           color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          size: 20,
+                        ),
+                        label: const Text(
+                          'Add Your First Transaction',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
-                    )],
+                  ],
                 ),
               ),
             ),
@@ -1137,7 +1185,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           index: index,
           child: _isSelectionMode
               ? Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 0,
+                  ),
                   elevation: 0,
                   color: isSelected
                       ? AppColors.accentGreen.withOpacity(0.1)
@@ -1253,229 +1304,247 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 )
               : Dismissible(
-            key: Key(t.id),
-            direction: DismissDirection.endToStart,
-            background: AnimatedContainer(
-              duration: AnimationUtils.fastDuration,
-              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Delete',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  key: Key(t.id),
+                  direction: DismissDirection.endToStart,
+                  background: AnimatedContainer(
+                    duration: AnimationUtils.fastDuration,
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 0,
                     ),
-                  ),
-                  SizedBox(width: 8),
-                  Icon(Icons.delete, color: Colors.white, size: 24),
-                ],
-              ),
-            ),
-            dismissThresholds: const {
-              DismissDirection.endToStart: 0.4,
-            },
-            resizeDuration: AnimationUtils.normalDuration,
-            movementDuration: AnimationUtils.normalDuration,
-            confirmDismiss: (direction) async {
-              return await showDialog<bool>(
-                context: context,
-                builder: (context) => FadeTransition(
-                  opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                    CurvedAnimation(
-                      parent: ModalRoute.of(context)!.animation!,
-                      curve: AnimationUtils.smoothCurve,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                  child: AlertDialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    title: const Text('Delete Transaction'),
-                    content: const Text(
-                      'Are you sure you want to delete this transaction? This action cannot be undone.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      AnimatedButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          style: TextButton.styleFrom(foregroundColor: Colors.red),
-                          child: const Text('Delete'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-            onDismissed: (direction) async {
-              final provider = context.read<TransactionProvider>();
-              await provider.remove(t.id);
-            },
-            child: Card(
-            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-            elevation: 0,
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: AppColors.border.withOpacity(0.4),
-                width: 1,
-              ),
-            ),
-            child: GestureDetector(
-              onLongPress: () {
-                setState(() {
-                  _isSelectionMode = true;
-                  _selectedTransactionIds.add(t.id);
-                });
-                _deleteBarController.forward();
-              },
-            child: _AnimatedCard(
-              onTap: () {
-                      if (_isSelectionMode) {
-                    setState(() {
-                      if (_selectedTransactionIds.contains(t.id)) {
-                        _selectedTransactionIds.remove(t.id);
-                        if (_selectedTransactionIds.isEmpty) {
-                          _deleteBarController.reverse().then((_) {
-                            if (mounted) {
-                              setState(() {
-                                _isSelectionMode = false;
-                              });
-                            }
-                          });
-                        }
-                      } else {
-                        _selectedTransactionIds.add(t.id);
-                      }
-                    });
-                  } else {
-                Navigator.push(
-                  context,
-                  CustomPageRoute(
-                    child: EditTransactionScreen(existing: t),
-                  ),
-                );
-                  }
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Row(
-                  children: [
-                    // Icon
-                    Builder(
-                      builder: (context) {
-                        final firestoreCategory = _getCategoryFromFirestore(
-                          t.category,
-                          t.type,
-                        );
-                        final categoryColor =
-                            firestoreCategory?.color ??
-                            _getCategoryFromString(t.category).color;
-                        final iconPath =
-                            firestoreCategory?.iconPath ??
-                            _getIconPathFromCategoryName(t.category);
-
-                        return Hero(
-                          tag: 'transaction_icon_${t.id}',
-                          child: Container(
-                            height: 40,
-                            width: 40,
-                            decoration: BoxDecoration(
-                              color: categoryColor.withOpacity(0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: SvgPicture.asset(
-                                iconPath,
-                                colorFilter: ColorFilter.mode(
-                                  categoryColor,
-                                  BlendMode.srcIn,
-                                ),
-                                width: 24,
-                                height: 24,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Title, Category + Date
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t.category,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            t.title.isEmpty ? 'Not Specified' : t.title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${t.type == TransactionType.income ? '+' : '-'} ${CurrencyFormatter.format(amount: t.amount, symbol: currencySymbol, decimalDigits: 2)}',
+                          'Delete',
                           style: TextStyle(
+                            color: Colors.white,
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: t.type == TransactionType.income
-                                ? AppColors.accentGreen
-                                : AppColors.error,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-
-                        Text(
-                          DateFormat.yMMMd().format(t.date),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.delete, color: Colors.white, size: 24),
                       ],
                     ),
-                  ],
+                  ),
+                  dismissThresholds: const {DismissDirection.endToStart: 0.4},
+                  resizeDuration: AnimationUtils.normalDuration,
+                  movementDuration: AnimationUtils.normalDuration,
+                  confirmDismiss: (direction) async {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (context) => FadeTransition(
+                        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                          CurvedAnimation(
+                            parent: ModalRoute.of(context)!.animation!,
+                            curve: AnimationUtils.smoothCurve,
+                          ),
+                        ),
+                        child: AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          title: const Text('Delete Transaction'),
+                          content: const Text(
+                            'Are you sure you want to delete this transaction? This action cannot be undone.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            AnimatedButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  onDismissed: (direction) async {
+                    final provider = context.read<TransactionProvider>();
+                    await provider.remove(t.id);
+                  },
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 0,
+                    ),
+                    elevation: 0,
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: AppColors.border.withOpacity(0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: GestureDetector(
+                      onLongPress: () {
+                        setState(() {
+                          _isSelectionMode = true;
+                          _selectedTransactionIds.add(t.id);
+                        });
+                        _deleteBarController.forward();
+                      },
+                      child: _AnimatedCard(
+                        onTap: () {
+                          if (_isSelectionMode) {
+                            setState(() {
+                              if (_selectedTransactionIds.contains(t.id)) {
+                                _selectedTransactionIds.remove(t.id);
+                                if (_selectedTransactionIds.isEmpty) {
+                                  _deleteBarController.reverse().then((_) {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isSelectionMode = false;
+                                      });
+                                    }
+                                  });
+                                }
+                              } else {
+                                _selectedTransactionIds.add(t.id);
+                              }
+                            });
+                          } else {
+                            Navigator.push(
+                              context,
+                              CustomPageRoute(
+                                child: EditTransactionScreen(existing: t),
+                              ),
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            children: [
+                              // Icon
+                              Builder(
+                                builder: (context) {
+                                  final firestoreCategory =
+                                      _getCategoryFromFirestore(
+                                        t.category,
+                                        t.type,
+                                      );
+                                  final categoryColor =
+                                      firestoreCategory?.color ??
+                                      _getCategoryFromString(t.category).color;
+                                  final iconPath =
+                                      firestoreCategory?.iconPath ??
+                                      _getIconPathFromCategoryName(t.category);
+
+                                  final isCategoryWhite = categoryColor == Colors.white ||
+                                      categoryColor.value == Colors.white.value;
+                                  return Hero(
+                                    tag: 'transaction_icon_${t.id}',
+                                    child: Container(
+                                      height: 40,
+                                      width: 40,
+                                      decoration: BoxDecoration(
+                                        color: isCategoryWhite
+                                            ? AppColors.accentGreen.withValues(alpha: 0.12)
+                                            : categoryColor.withOpacity(0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(10),
+                                        child: SvgPicture.asset(
+                                          iconPath,
+                                          colorFilter: isCategoryWhite
+                                              ? null
+                                              : ColorFilter.mode(
+                                                  categoryColor,
+                                                  BlendMode.srcIn,
+                                                ),
+                                          width: 24,
+                                          height: 24,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Title, Category + Date
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t.category,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 4),
+
+                                    Text(
+                                      t.title.isEmpty
+                                          ? 'Not Specified'
+                                          : t.title,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${t.type == TransactionType.income ? '+' : '-'} ${CurrencyFormatter.format(amount: t.amount, symbol: currencySymbol, decimalDigits: 2)}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: t.type == TransactionType.income
+                                          ? AppColors.accentGreen
+                                          : AppColors.error,
+                                    ),
+                                  ),
+
+                                  Text(
+                                    DateFormat.yMMMd().format(t.date),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-        )));
+        );
       },
     );
   }
@@ -1597,649 +1666,373 @@ class _DashboardScreenState extends State<DashboardScreen>
     PeriodFilter tempFilter = _filter;
     String? tempAccountId = _selectedAccountId;
     DateTimeRange? tempCustomRange = _customRange;
+    int selectedTabIndex = 0;
+    final List<String> tabs = ['Period', 'Account'];
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag Handle
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          Widget buildListOption({
+            required String label,
+            required bool isSelected,
+            bool isIndeterminate = false,
+            required VoidCallback onTap,
+          }) {
+            return InkWell(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
-                  color: AppColors.border.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(2),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppColors.border.withOpacity(0.2),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: isSelected
+                              ? AppColors.accentGreen
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: (isSelected || isIndeterminate)
+                              ? AppColors.accentGreen
+                              : AppColors.border.withOpacity(0.5),
+                          width: (isSelected || isIndeterminate) ? 2.0 : 1.5,
+                        ),
+                      ),
+                      child: isSelected
+                          ? const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: AppColors.accentGreen,
+                            )
+                          : isIndeterminate
+                          ? const Icon(
+                              Icons.remove,
+                              size: 14,
+                              color: AppColors.accentGreen,
+                            )
+                          : null,
+                    ),
+                  ],
                 ),
               ),
-              
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.accentGreen.withOpacity(0.15),
-                                  AppColors.accentGreen.withOpacity(0.08),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
-                              Icons.tune_rounded,
-                              color: AppColors.accentGreen,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Filter Transactions',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                    letterSpacing: -0.5,
-                                  ),
+            );
+          }
+
+          Widget buildPeriodPane() {
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                for (final p in [
+                  PeriodFilter.day,
+                  PeriodFilter.week,
+                  PeriodFilter.month,
+                  PeriodFilter.year,
+                  PeriodFilter.custom,
+                ])
+                  buildListOption(
+                    label: _labelForFilter(p),
+                    isSelected: tempFilter == p,
+                    onTap: () async {
+                      if (p == PeriodFilter.custom) {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2015),
+                          lastDate: DateTime(2100),
+                          initialDateRange: tempCustomRange,
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: ColorScheme.light(
+                                  primary: AppColors.accentGreen,
+                                  onPrimary: Colors.white,
+                                  surface: Colors.white,
+                                  onSurface: AppColors.textPrimary,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Customize your view',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundScaffold,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: AppColors.textSecondary,
-                                size: 20,
                               ),
-                              padding: const EdgeInsets.all(8),
-                              constraints: const BoxConstraints(),
-                            ),
-                          ),
-                        ],
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            tempCustomRange = picked;
+                            tempFilter = p;
+                          });
+                        }
+                      } else {
+                        setState(() => tempFilter = p);
+                      }
+                    },
+                  ),
+                if (tempFilter == PeriodFilter.custom &&
+                    tempCustomRange != null)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      '${DateFormat.yMMMd().format(tempCustomRange!.start)} - ${DateFormat.yMMMd().format(tempCustomRange!.end)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.accentGreen,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 28),
+                    ),
+                  ),
+              ],
+            );
+          }
 
-                      // Time Period Section
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundScaffold,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: AppColors.border.withOpacity(0.2),
-                            width: 1,
+          Widget buildAccountPane() {
+            if (accounts.isEmpty) {
+              return Center(
+                child: Text(
+                  'No accounts found',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              );
+            }
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                buildListOption(
+                  label: 'All Accounts',
+                  isSelected: tempAccountId == null,
+                  isIndeterminate: tempAccountId != null,
+                  onTap: () => setState(() => tempAccountId = null),
+                ),
+                const SizedBox(height: 8),
+                ...accounts.map(
+                  (account) => buildListOption(
+                    label: account.name,
+                    isSelected: tempAccountId == account.id,
+                    onTap: () => setState(() => tempAccountId = account.id),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          Widget buildRightPaneContent() {
+            switch (selectedTabIndex) {
+              case 0:
+                return buildPeriodPane();
+              case 1:
+                return buildAccountPane();
+              default:
+                return const SizedBox.shrink();
+            }
+          }
+
+          return Container(
+            height:
+                MediaQuery.of(context).size.height -
+                MediaQuery.of(context).padding.top,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Handle
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Filters',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentGreen.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 16,
-                                    color: AppColors.accentGreen,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Time Period',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            StatefulBuilder(
-                              builder: (context, setState) {
-                                // Calculate date range for current selection
-                                DateTimeRange getTempRange() {
-                                  final now = DateTime.now();
-                                  switch (tempFilter) {
-                                    case PeriodFilter.day:
-                                      return DateTimeRange(
-                                        start: _startOfDay(now),
-                                        end: _endOfDay(now),
-                                      );
-                                    case PeriodFilter.week:
-                                      final start = now.subtract(
-                                        Duration(days: now.weekday - 1),
-                                      );
-                                      final end = start.add(const Duration(days: 6));
-                                      return DateTimeRange(
-                                        start: _startOfDay(start),
-                                        end: _endOfDay(end),
-                                      );
-                                    case PeriodFilter.month:
-                                      final start = DateTime(now.year, now.month, 1);
-                                      final end = DateTime(now.year, now.month + 1, 0);
-                                      return DateTimeRange(
-                                        start: _startOfDay(start),
-                                        end: _endOfDay(end),
-                                      );
-                                    case PeriodFilter.year:
-                                      final start = DateTime(now.year, 1, 1);
-                                      final end = DateTime(now.year, 12, 31);
-                                      return DateTimeRange(
-                                        start: _startOfDay(start),
-                                        end: _endOfDay(end),
-                                      );
-                                    case PeriodFilter.custom:
-                                      return tempCustomRange ??
-                                          DateTimeRange(
-                                            start: _startOfDay(now),
-                                            end: _endOfDay(now),
-                                          );
-                                  }
-                                }
-
-                                final previewRange = getTempRange();
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        for (final period in [
-                                          PeriodFilter.day,
-                                          PeriodFilter.week,
-                                          PeriodFilter.month,
-                                          PeriodFilter.year,
-                                          PeriodFilter.custom,
-                                        ])
-                                          Material(
-                                            color: Colors.transparent,
-                                            child: InkWell(
-                                              onTap: () async {
-                                                if (period == PeriodFilter.custom) {
-                                                  final picked = await showDateRangePicker(
-                                                    context: context,
-                                                    firstDate: DateTime(2015),
-                                                    lastDate: DateTime(2100),
-                                                    initialDateRange:
-                                                        tempCustomRange ?? _currentRange(),
-                                                  );
-
-                                                  if (picked != null) {
-                                                    setState(() {
-                                                      tempFilter = period;
-                                                      tempCustomRange = DateTimeRange(
-                                                        start: _startOfDay(picked.start),
-                                                        end: _endOfDay(picked.end),
-                                                      );
-                                                    });
-                                                  }
-                                                } else {
-                                                  setState(() {
-                                                    tempFilter = period;
-                                                    tempCustomRange = null;
-                                                  });
-                                                }
-                                              },
-                                              borderRadius: BorderRadius.circular(14),
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 200),
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 20,
-                                                  vertical: 12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  gradient: tempFilter == period
-                                                      ? LinearGradient(
-                                                          colors: [
-                                                            AppColors.accentGreen,
-                                                            AppColors.accentGreen.withOpacity(0.8),
-                                                          ],
-                                                        )
-                                                      : null,
-                                                  color: tempFilter == period
-                                                      ? null
-                                                      : Colors.white,
-                                                  borderRadius: BorderRadius.circular(14),
-                                                  border: Border.all(
-                                                    color: tempFilter == period
-                                                        ? AppColors.accentGreen
-                                                        : AppColors.border.withOpacity(0.3),
-                                                    width: tempFilter == period ? 0 : 1.5,
-                                                  ),
-                                                  boxShadow: tempFilter == period
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: AppColors.accentGreen.withOpacity(0.3),
-                                                            blurRadius: 8,
-                                                            offset: const Offset(0, 2),
-                                                          ),
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: Text(
-                                                  _labelForFilter(period),
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: tempFilter == period
-                                                        ? Colors.white
-                                                        : AppColors.textPrimary,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    // Date Preview
-                                    Container(
-                                      padding: const EdgeInsets.all(14),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            AppColors.accentGreen.withOpacity(0.12),
-                                            AppColors.accentGreen.withOpacity(0.06),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: AppColors.accentGreen.withOpacity(0.2),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.accentGreen.withOpacity(0.15),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Icon(
-                                              Icons.date_range_rounded,
-                                              size: 16,
-                                              color: AppColors.accentGreen,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Selected Period',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: AppColors.textSecondary,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  _getDateRangeTextForRange(
-                                                    previewRange,
-                                                    tempFilter,
-                                                  ),
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.accentGreen,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      if (accounts.isNotEmpty) ...[
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.backgroundScaffold,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: AppColors.border.withOpacity(0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accentGreen.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.account_balance_wallet_rounded,
-                                      size: 16,
-                                      color: AppColors.accentGreen,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Account',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              StatefulBuilder(
-                                builder: (context, setState) => Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    // All Accounts option
-                                    Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            tempAccountId = null;
-                                          });
-                                        },
-                                        borderRadius: BorderRadius.circular(14),
-                                        child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 200),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 12,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            gradient: tempAccountId == null
-                                                ? LinearGradient(
-                                                    colors: [
-                                                      AppColors.accentGreen,
-                                                      AppColors.accentGreen.withOpacity(0.8),
-                                                    ],
-                                                  )
-                                                : null,
-                                            color: tempAccountId == null
-                                                ? null
-                                                : Colors.white,
-                                            borderRadius: BorderRadius.circular(14),
-                                            border: Border.all(
-                                              color: tempAccountId == null
-                                                  ? AppColors.accentGreen
-                                                  : AppColors.border.withOpacity(0.3),
-                                              width: tempAccountId == null ? 0 : 1.5,
-                                            ),
-                                            boxShadow: tempAccountId == null
-                                                ? [
-                                                    BoxShadow(
-                                                      color: AppColors.accentGreen.withOpacity(0.3),
-                                                      blurRadius: 8,
-                                                      offset: const Offset(0, 2),
-                                                    ),
-                                                  ]
-                                                : null,
-                                          ),
-                                          child: Text(
-                                            'All Accounts',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: tempAccountId == null
-                                                  ? Colors.white
-                                                  : AppColors.textPrimary,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    // Individual accounts
-                                    for (final account in accounts)
-                                      Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              tempAccountId = account.id;
-                                            });
-                                          },
-                                          borderRadius: BorderRadius.circular(14),
-                                          child: AnimatedContainer(
-                                            duration: const Duration(milliseconds: 200),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 20,
-                                              vertical: 12,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              gradient: tempAccountId == account.id
-                                                  ? LinearGradient(
-                                                      colors: [
-                                                        AppColors.accentGreen,
-                                                        AppColors.accentGreen.withOpacity(0.8),
-                                                      ],
-                                                    )
-                                                  : null,
-                                              color: tempAccountId == account.id
-                                                  ? null
-                                                  : Colors.white,
-                                              borderRadius: BorderRadius.circular(14),
-                                              border: Border.all(
-                                                color: tempAccountId == account.id
-                                                    ? AppColors.accentGreen
-                                                    : AppColors.border.withOpacity(0.3),
-                                                width: tempAccountId == account.id ? 0 : 1.5,
-                                              ),
-                                              boxShadow: tempAccountId == account.id
-                                                  ? [
-                                                      BoxShadow(
-                                                        color: AppColors.accentGreen.withOpacity(0.3),
-                                                        blurRadius: 8,
-                                                        offset: const Offset(0, 2),
-                                                      ),
-                                                    ]
-                                                  : null,
-                                            ),
-                                            child: Text(
-                                              account.name,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: tempAccountId == account.id
-                                                    ? Colors.white
-                                                    : AppColors.textPrimary,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                        InkWell(
+                          onTap: () => Navigator.pop(context),
+                          child: Icon(
+                            Icons.close,
+                            color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 20),
                       ],
+                    ),
+                  ),
+                  Divider(height: 1, color: AppColors.border.withOpacity(0.3)),
 
-                      const SizedBox(height: 8),
-
-                      // Apply Button
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.accentGreen,
-                              AppColors.accentGreen.withOpacity(0.9),
-                            ],
+                  // Body - Split View
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Left Pane (Tabs)
+                        Container(
+                          width: 130,
+                          color: Colors.grey.shade50,
+                          child: ListView.builder(
+                            itemCount: tabs.length,
+                            itemBuilder: (context, index) {
+                              final isSelected = selectedTabIndex == index;
+                              return InkWell(
+                                onTap: () =>
+                                    setState(() => selectedTabIndex = index),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.transparent,
+                                  child: Text(
+                                    tabs[index],
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: isSelected
+                                          ? AppColors.accentGreen
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accentGreen.withOpacity(0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
                         ),
-                        child: Material(
-                          color: Colors.transparent,
+
+                        // Right Pane (Content)
+                        Expanded(
+                          child: Container(
+                            color: Colors.white,
+                            child: buildRightPaneContent(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: AppColors.border.withOpacity(0.3)),
+
+                  // Bottom Buttons
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
                           child: InkWell(
                             onTap: () {
                               setState(() {
+                                tempFilter = PeriodFilter.month;
+                                tempAccountId = null;
+                                tempCustomRange = null;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(24),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.border),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Text(
+                                'Clear all',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              this.setState(() {
                                 _filter = tempFilter;
                                 _selectedAccountId = tempAccountId;
                                 _customRange = tempCustomRange;
                               });
                               Navigator.pop(context);
                             },
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(24),
                             child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               alignment: Alignment.center,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Apply Filters',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.3,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                              decoration: BoxDecoration(
+                                color: AppColors.accentGreen,
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Text(
+                                'Apply',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Reset Button
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _filter = PeriodFilter.month;
-                              _selectedAccountId = null;
-                              _customRange = null;
-                            });
-                            Navigator.pop(context);
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundScaffold,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: AppColors.border.withOpacity(0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.refresh_rounded,
-                                  color: AppColors.textSecondary,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Reset to Default',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -2278,35 +2071,100 @@ TransactionCategory _getCategoryFromString(String categoryName) {
 String _getIconPathFromCategoryName(String categoryName) {
   // Map category names to their corresponding SVG file paths
   const Map<String, String> iconMap = {
-    // Expense categories
-    'Food': 'assets/images/ic_vector_food.svg',
-    'Drinks': 'assets/images/ic_vector_drink.svg',
-    'Transportation': 'assets/images/ic_vector_transportation.svg',
-    'Housing': 'assets/images/ic_vector_home.svg',
-    'Shopping': 'assets/images/ic_vector_shopping_bag.svg',
-    'Health': 'assets/images/ic_vector_health.svg',
-    'Fitness': 'assets/images/ic_vector_fitness.svg',
-    'Entertainment': 'assets/images/ic_vector_entertainment.svg',
-    'Games': 'assets/images/ic_vector_game.svg',
-    'Education': 'assets/images/ic_vector_education.svg',
-    'Loans': 'assets/images/ic_vector_loan.svg',
-    'Savings': 'assets/images/ic_vector_investment.svg',
-    'Investments': 'assets/images/ic_vector_investment.svg',
-    'Travel': 'assets/images/ic_vector_travel.svg',
-    'Gifts': 'assets/images/ic_vector_gifts.svg',
-    'Donations': 'assets/images/ic_vector_donate.svg',
-    'Beauty': 'assets/images/ic_vector_beauty.svg',
-    'Taxes': 'assets/images/ic_vector_tax.svg',
-    'Others': 'assets/images/ic_vector_other.svg',
-
-    // Income categories
-    'Salary': 'assets/images/ic_vector_salary.svg',
-    'Business': 'assets/images/ic_vector_business.svg',
-    'Interest Income': 'assets/images/ic_vector_interest_income.svg',
-    'Rental Income': 'assets/images/ic_vector_rental_income.svg',
+    'insurance': 'assets/images/new/ic_insurance.svg',
+    'investment': 'assets/images/new/ic_investment.svg',
+    'investments': 'assets/images/new/ic_investment.svg',
+    'fuel and transportation': 'assets/images/new/ic_fuel.svg',
+    'fuel & transportation': 'assets/images/new/ic_fuel.svg',
+    'fuel': 'assets/images/new/ic_fuel.svg',
+    'transportation': 'assets/images/new/ic_fuel.svg',
+    'credit card bill': 'assets/images/new/ic_credit_card.svg',
+    'credit card': 'assets/images/new/ic_credit_card.svg',
+    'credit_card': 'assets/images/new/ic_credit_card.svg',
+    'creditcard': 'assets/images/new/ic_credit_card.svg',
+    'cash withdrawal': 'assets/images/new/ic_family_transfer.svg',
+    'cash_withdrawal': 'assets/images/new/ic_family_transfer.svg',
+    'family transfer': 'assets/images/new/ic_family_transfer.svg',
+    'family_transfer': 'assets/images/new/ic_family_transfer.svg',
+    'gifts': 'assets/images/new/ic_gift.svg',
+    'gift': 'assets/images/new/ic_gift.svg',
+    'personal care': 'assets/images/new/ic_personal_care.svg',
+    'personal_care': 'assets/images/new/ic_personal_care.svg',
+    'personalcare': 'assets/images/new/ic_personal_care.svg',
+    'beauty': 'assets/images/new/ic_personal_care.svg',
+    'repair': 'assets/images/new/ic_repairs.svg',
+    'repairs': 'assets/images/new/ic_repairs.svg',
+    'maintenance': 'assets/images/new/ic_repairs.svg',
+    'maintenance & repairs': 'assets/images/new/ic_repairs.svg',
+    'self care': 'assets/images/new/ic_mental_wellness.svg',
+    'self_care': 'assets/images/new/ic_mental_wellness.svg',
+    'mental wellness': 'assets/images/new/ic_mental_wellness.svg',
+    'mental_wellness': 'assets/images/new/ic_mental_wellness.svg',
+    'wellness': 'assets/images/new/ic_mental_wellness.svg',
+    'birthdays': 'assets/images/new/ic_birthday.svg',
+    'birthday': 'assets/images/new/ic_birthday.svg',
+    'yoga & meditation': 'assets/images/new/ic_yoga.svg',
+    'yoga and meditation': 'assets/images/new/ic_yoga.svg',
+    'yoga': 'assets/images/new/ic_yoga.svg',
+    'fitness': 'assets/images/new/ic_gym.svg',
+    'gym': 'assets/images/new/ic_gym.svg',
+    'renovation': 'assets/images/new/ic_renovation.svg',
+    'renovations': 'assets/images/new/ic_renovation.svg',
+    'home renovation': 'assets/images/new/ic_renovation.svg',
+    'bills & utilities': 'assets/images/new/ic_bills_utilities.svg',
+    'bills and utilities': 'assets/images/new/ic_bills_utilities.svg',
+    'bills': 'assets/images/new/ic_bills_utilities.svg',
+    'utilities': 'assets/images/new/ic_bills_utilities.svg',
+    'groceries': 'assets/images/new/ic_groceries.svg',
+    'grocery': 'assets/images/new/ic_groceries.svg',
+    'food & dining': 'assets/images/new/ic_food.svg',
+    'food and dining': 'assets/images/new/ic_food.svg',
+    'food': 'assets/images/new/ic_food.svg',
+    'dining': 'assets/images/new/ic_food.svg',
+    'entertainment': 'assets/images/new/ic_entertainment.svg',
+    'entertainments': 'assets/images/new/ic_entertainment.svg',
+    'movie': 'assets/images/new/ic_entertainment.svg',
+    'movies': 'assets/images/new/ic_entertainment.svg',
+    'hospital': 'assets/images/new/ic_hospital.svg',
+    'hospitals': 'assets/images/new/ic_hospital.svg',
+    'medical': 'assets/images/new/ic_hospital.svg',
+    'health': 'assets/images/new/ic_hospital.svg',
+    'healthcare': 'assets/images/new/ic_hospital.svg',
+    'charges': 'assets/images/new/ic_charges.svg',
+    'charge': 'assets/images/new/ic_charges.svg',
+    'fee': 'assets/images/new/ic_charges.svg',
+    'fees': 'assets/images/new/ic_charges.svg',
+    'tax': 'assets/images/new/ic_tax.svg',
+    'taxes': 'assets/images/new/ic_tax.svg',
+    'education': 'assets/images/new/ic_education.svg',
+    'studies': 'assets/images/new/ic_education.svg',
+    'study': 'assets/images/new/ic_education.svg',
+    'college': 'assets/images/new/ic_education.svg',
+    'school': 'assets/images/new/ic_education.svg',
+    'tuition': 'assets/images/new/ic_education.svg',
+    'loan': 'assets/images/new/ic_loan.svg',
+    'loans': 'assets/images/new/ic_loan.svg',
+    'emi': 'assets/images/new/ic_loan.svg',
+    'debt': 'assets/images/new/ic_loan.svg',
+    'shopping': 'assets/images/new/ic_shopping.svg',
+    'clothes': 'assets/images/new/ic_shopping.svg',
+    'clothing': 'assets/images/new/ic_shopping.svg',
+    'store': 'assets/images/new/ic_shopping.svg',
+    'subscription': 'assets/images/new/ic_subscription.svg',
+    'subscriptions': 'assets/images/new/ic_subscription.svg',
+    'membership': 'assets/images/new/ic_subscription.svg',
+    'memberships': 'assets/images/new/ic_subscription.svg',
+    'travel': 'assets/images/new/ic_travel.svg',
+    'travels': 'assets/images/new/ic_travel.svg',
+    'vacation': 'assets/images/new/ic_travel.svg',
+    'flight': 'assets/images/new/ic_travel.svg',
+    'trip': 'assets/images/new/ic_travel.svg',
+    'holiday': 'assets/images/new/ic_travel.svg',
+    'other': 'assets/images/new/ic_others.svg',
+    'others': 'assets/images/new/ic_others.svg',
   };
 
-  return iconMap[categoryName] ?? 'assets/images/ic_vector_other.svg';
+  return iconMap[categoryName.toLowerCase().trim()] ?? 'assets/images/new/ic_others.svg';
 }
 
 /// Animated card with tap feedback
@@ -2363,7 +2221,8 @@ class _PulsingIcon extends StatefulWidget {
   State<_PulsingIcon> createState() => _PulsingIconState();
 }
 
-class _PulsingIconState extends State<_PulsingIcon> with SingleTickerProviderStateMixin {
+class _PulsingIconState extends State<_PulsingIcon>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -2374,10 +2233,11 @@ class _PulsingIconState extends State<_PulsingIcon> with SingleTickerProviderSta
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
-    
-    _animation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+
+    _animation = Tween<double>(
+      begin: 0.95,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -2391,10 +2251,7 @@ class _PulsingIconState extends State<_PulsingIcon> with SingleTickerProviderSta
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: _animation.value,
-          child: widget.child,
-        );
+        return Transform.scale(scale: _animation.value, child: widget.child);
       },
     );
   }

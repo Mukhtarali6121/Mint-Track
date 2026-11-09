@@ -37,6 +37,7 @@ import 'core/firebase_options.dart';
 // 1. IMPORT YOUR NEW PROVIDER
 import 'providers/transaction_provider.dart';
 import 'providers/account_provider.dart';
+import 'providers/premium_provider.dart';
 import 'theme/app_fonts.dart';
 
 void main() async {
@@ -134,6 +135,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
         ChangeNotifierProvider(create: (_) => GoalProvider()),
         ChangeNotifierProvider(create: (_) => RecurringTransactionProvider()),
+        ChangeNotifierProvider(create: (_) => PremiumProvider()),
       ],
       child: MaterialApp(
         title: 'Expense Tracker',

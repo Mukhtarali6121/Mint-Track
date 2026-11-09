@@ -75,6 +75,7 @@ class _AddEditGoalScreenState extends State<AddEditGoalScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => CategoryPickerBottomSheet(
         transactionType: transactionType,
         selectedCategory: _selectedCategoryId,

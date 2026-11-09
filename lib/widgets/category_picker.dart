@@ -23,8 +23,25 @@ class CategoryPickerBottomSheet extends StatefulWidget {
       _CategoryPickerBottomSheetState();
 }
 
-class _CategoryPickerBottomSheetState
-    extends State<CategoryPickerBottomSheet> {
+class _CategoryPickerBottomSheetState extends State<CategoryPickerBottomSheet> {
+  String? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    final categories = _getCategoriesFromHive();
+    final initial = widget.selectedCategory;
+    if (initial != null) {
+      final match = categories.cast<Category?>().firstWhere(
+        (c) => c != null && c.name.toLowerCase() == initial.toLowerCase(),
+        orElse: () => null,
+      );
+      _selectedCategory = match?.name;
+    } else {
+      _selectedCategory = null;
+    }
+  }
+
   List<Category> _getCategoriesFromHive() {
     final setupData = HiveStorage.getSetupData();
     if (setupData == null) return _getDefaultCategories();
@@ -39,34 +56,195 @@ class _CategoryPickerBottomSheetState
   List<Category> _getDefaultCategories() {
     if (widget.transactionType == TransactionType.expense) {
       return [
-        Category(name: 'Food', iconName: 'food', colorValue: 0xFF81C784, position: 0),
-        Category(name: 'Drinks', iconName: 'drinks', colorValue: 0xFF64B5F6, position: 1),
-        Category(name: 'Transportation', iconName: 'transportation', colorValue: 0xFF2196F3, position: 2),
-        Category(name: 'Housing', iconName: 'housing', colorValue: 0xFF795548, position: 3),
-        Category(name: 'Shopping', iconName: 'shopping', colorValue: 0xFFFFB74D, position: 4),
-        Category(name: 'Health', iconName: 'health', colorValue: 0xFFE57373, position: 5),
-        Category(name: 'Fitness', iconName: 'fitness', colorValue: 0xFF4CAF50, position: 6),
-        Category(name: 'Entertainment', iconName: 'entertainment', colorValue: 0xFFBA68C8, position: 7),
-        Category(name: 'Games', iconName: 'games', colorValue: 0xFF9C27B0, position: 8),
-        Category(name: 'Education', iconName: 'education', colorValue: 0xFF3F51B5, position: 9),
-        Category(name: 'Loans', iconName: 'loans', colorValue: 0xFF607D8B, position: 10),
-        Category(name: 'Savings', iconName: 'savings', colorValue: 0xFF4CAF50, position: 11),
-        Category(name: 'Investments', iconName: 'investments', colorValue: 0xFF8BC34A, position: 12),
-        Category(name: 'Travel', iconName: 'travel', colorValue: 0xFF00BCD4, position: 13),
-        Category(name: 'Gifts', iconName: 'gifts', colorValue: 0xFFE91E63, position: 14),
-        Category(name: 'Donations', iconName: 'donations', colorValue: 0xFF9C27B0, position: 15),
-        Category(name: 'Beauty', iconName: 'beauty', colorValue: 0xFFE1BEE7, position: 16),
-        Category(name: 'Taxes', iconName: 'taxes', colorValue: 0xFFFF5722, position: 17),
-        Category(name: 'Others', iconName: 'others', colorValue: 0xFF90A4AE, position: 18),
+        Category(
+          name: 'Insurance',
+          iconName: 'insurance',
+          colorValue: Colors.white.value,
+          position: 0,
+        ),
+        Category(
+          name: 'Investment',
+          iconName: 'investment',
+          colorValue: Colors.white.value,
+          position: 1,
+        ),
+        Category(
+          name: 'Fuel and Transportation',
+          iconName: 'fuel and transportation',
+          colorValue: Colors.white.value,
+          position: 2,
+        ),
+        Category(
+          name: 'Credit Card Bill',
+          iconName: 'credit card bill',
+          colorValue: Colors.white.value,
+          position: 3,
+        ),
+        Category(
+          name: 'Cash Withdrawal',
+          iconName: 'cash withdrawal',
+          colorValue: Colors.white.value,
+          position: 4,
+        ),
+        Category(
+          name: 'Gifts',
+          iconName: 'gifts',
+          colorValue: Colors.white.value,
+          position: 5,
+        ),
+        Category(
+          name: 'Personal Care',
+          iconName: 'personal care',
+          colorValue: Colors.white.value,
+          position: 6,
+        ),
+        Category(
+          name: 'Repair',
+          iconName: 'repair',
+          colorValue: Colors.white.value,
+          position: 7,
+        ),
+        Category(
+          name: 'Self Care',
+          iconName: 'self care',
+          colorValue: Colors.white.value,
+          position: 8,
+        ),
+        Category(
+          name: 'Birthdays',
+          iconName: 'birthdays',
+          colorValue: Colors.white.value,
+          position: 9,
+        ),
+        Category(
+          name: 'Yoga & Meditation',
+          iconName: 'yoga & meditation',
+          colorValue: Colors.white.value,
+          position: 10,
+        ),
+        Category(
+          name: 'Fitness',
+          iconName: 'fitness',
+          colorValue: Colors.white.value,
+          position: 11,
+        ),
+        Category(
+          name: 'Renovation',
+          iconName: 'renovation',
+          colorValue: Colors.white.value,
+          position: 12,
+        ),
+        Category(
+          name: 'Bills & Utilities',
+          iconName: 'bills & utilities',
+          colorValue: Colors.white.value,
+          position: 13,
+        ),
+        Category(
+          name: 'Groceries',
+          iconName: 'groceries',
+          colorValue: Colors.white.value,
+          position: 14,
+        ),
+        Category(
+          name: 'Food & Dining',
+          iconName: 'food & dining',
+          colorValue: Colors.white.value,
+          position: 15,
+        ),
+        Category(
+          name: 'Entertainment',
+          iconName: 'entertainment',
+          colorValue: Colors.white.value,
+          position: 16,
+        ),
+        Category(
+          name: 'Hospital',
+          iconName: 'hospital',
+          colorValue: Colors.white.value,
+          position: 17,
+        ),
+        Category(
+          name: 'Charges',
+          iconName: 'charges',
+          colorValue: Colors.white.value,
+          position: 18,
+        ),
+        Category(
+          name: 'Tax',
+          iconName: 'tax',
+          colorValue: Colors.white.value,
+          position: 19,
+        ),
+        Category(
+          name: 'Education',
+          iconName: 'education',
+          colorValue: Colors.white.value,
+          position: 20,
+        ),
+        Category(
+          name: 'Loan',
+          iconName: 'loan',
+          colorValue: Colors.white.value,
+          position: 21,
+        ),
+        Category(
+          name: 'Shopping',
+          iconName: 'shopping',
+          colorValue: Colors.white.value,
+          position: 22,
+        ),
+        Category(
+          name: 'Subscription',
+          iconName: 'subscription',
+          colorValue: Colors.white.value,
+          position: 23,
+        ),
+        Category(
+          name: 'Travel',
+          iconName: 'travel',
+          colorValue: Colors.white.value,
+          position: 24,
+        ),
+        Category(
+          name: 'Other',
+          iconName: 'others',
+          colorValue: Colors.white.value,
+          position: 25,
+        ),
       ];
     } else {
       return [
-        Category(name: 'Salary', iconName: 'salary', colorValue: 0xFF4CAF50, position: 0),
-        Category(name: 'Business', iconName: 'business', colorValue: 0xFF2196F3, position: 1),
-        Category(name: 'Interest Income', iconName: 'interest income', colorValue: 0xFF8BC34A, position: 2),
-        Category(name: 'Gifts', iconName: 'gifts', colorValue: 0xFFE91E63, position: 3),
-        Category(name: 'Rental Income', iconName: 'rental income', colorValue: 0xFF795548, position: 4),
-        Category(name: 'Others', iconName: 'others', colorValue: 0xFF90A4AE, position: 5),
+        Category(
+          name: 'Investment',
+          iconName: 'investment',
+          colorValue: Colors.white.value,
+          position: 0,
+        ),
+        Category(
+          name: 'Cash Withdrawal',
+          iconName: 'cash withdrawal',
+          colorValue: Colors.white.value,
+          position: 1,
+        ),
+        Category(
+          name: 'Gifts',
+          iconName: 'gifts',
+          colorValue: Colors.white.value,
+          position: 2,
+        ),
+        Category(
+          name: 'Birthdays',
+          iconName: 'birthdays',
+          colorValue: Colors.white.value,
+          position: 3,
+        ),
+        Category(
+          name: 'Other',
+          iconName: 'others',
+          colorValue: Colors.white.value,
+          position: 4,
+        ),
       ];
     }
   }
@@ -74,75 +252,122 @@ class _CategoryPickerBottomSheetState
   @override
   Widget build(BuildContext context) {
     final categories = _getCategoriesFromHive();
-    print("aaksjdnad==> $categories");
     categories.sort((a, b) {
-      if (a.name.toLowerCase() == 'others' || a.name.toLowerCase() == 'other') return 1; // push a after b
-      if (b.name == 'Others'|| b.name.toLowerCase() == 'other') return -1; // push b after a
+      if (a.name.toLowerCase() == 'others' || a.name.toLowerCase() == 'other') {
+        return 1; // push a after b
+      }
+      if (b.name.toLowerCase() == 'others' || b.name.toLowerCase() == 'other') {
+        return -1; // push b after a
+      }
       return 0;
     });
 
+    final hasValidSelection = _selectedCategory != null &&
+        categories.any((c) => c.name == _selectedCategory);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundScaffold,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.82,
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              margin: const EdgeInsets.only(top: 4, bottom: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD1D5DB),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header: Title & Subtitle + Action buttons
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Select ${widget.transactionType.name} Category',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold, // or FontWeight.w600, etc.
-                  fontSize: 19
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Categorise this transaction',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Tap to categorise',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               IconButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  // Then push the new page onto the stack
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => const EditCategoriesPage(),
                     ),
                   );
-
                 },
-                icon: const Icon(Icons.edit, size: 20),
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                color: const Color(0xFF6B7280),
+                tooltip: 'Manage categories',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 14),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, size: 22),
+                color: const Color(0xFF374151),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
             ],
-          )
-,
+          ),
           const SizedBox(height: 16),
 
-          // GridView with limited height
+          // Grid of categories
           Flexible(
             child: GridView.builder(
               shrinkWrap: true,
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: const BouncingScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4, // 3 items per row
-                childAspectRatio: 0.8, // more height for text below
-                crossAxisSpacing: 12,
+                crossAxisCount: 4,
+                childAspectRatio: 0.74,
+                crossAxisSpacing: 10,
                 mainAxisSpacing: 12,
               ),
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final category = categories[index];
-                final isSelected = widget.selectedCategory == category.name;
+                final isSelected = _selectedCategory == category.name;
 
                 return InkWell(
                   onTap: () {
-                    widget.onCategorySelected(category.name);
-                    Navigator.of(context).pop();
+                    setState(() {
+                      _selectedCategory = category.name;
+                    });
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Column(
@@ -150,41 +375,58 @@ class _CategoryPickerBottomSheetState
                     children: [
                       // Circle icon
                       Container(
-                        height: 50,
-                        width: 50,
+                        height: 56,
+                        width: 56,
                         decoration: BoxDecoration(
-                          color: category.color.withOpacity(0.15),
+                          color: isSelected
+                              ? AppColors.accentGreen.withValues(alpha: 0.12)
+                              : Colors.white,
                           shape: BoxShape.circle,
                           border: isSelected
-                              ? Border.all(color: category.color, width: 2)
-                              : null,
+                              ? Border.all(
+                                  color: AppColors.accentGreen,
+                                  width: 2.0,
+                                )
+                              : Border.all(
+                                  color: const Color(0xFFF0F2F5),
+                                  width: 1.0,
+                                ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12), // space inside the circle
+                        child: Center(
                           child: SvgPicture.asset(
                             category.iconPath,
-                            colorFilter: ColorFilter.mode(
-                              category.color,
-                              BlendMode.srcIn,
-                            ),
-                            width: 28,
-                            height: 28,
+                            width: 26,
+                            height: 26,
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
                       // Category name
-                      Text(
-                        category.displayName,
-                        style: TextStyle(
-                          color: isSelected
-                              ? category.color
-                              : AppColors.textPrimary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      SizedBox(
+                        height: 32,
+                        child: Text(
+                          category.displayName,
+                          style: TextStyle(
+                            color: isSelected
+                                ? AppColors.accentGreen
+                                : const Color(0xFF2D3748),
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            fontSize: 12,
+                            height: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -192,7 +434,39 @@ class _CategoryPickerBottomSheetState
               },
             ),
           ),
-          const SizedBox(height: 16),
+
+          // Next button at the bottom
+          Container(
+            width: double.infinity,
+            height: 50,
+            margin: const EdgeInsets.only(top: 10, bottom: 4),
+            child: ElevatedButton(
+              onPressed: hasValidSelection
+                  ? () {
+                      widget.onCategorySelected(_selectedCategory!);
+                      Navigator.of(context).pop();
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentGreen,
+                disabledBackgroundColor: const Color(0xFFE5E6E7),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+              child: Text(
+                'Next',
+                style: TextStyle(
+                  color: hasValidSelection
+                      ? Colors.white
+                      : const Color(0xFFBDBFC1),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

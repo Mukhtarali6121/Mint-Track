@@ -94,21 +94,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> with TickerPr
 
   /// Sign up function
   Future<void> _signUp() async {
-    print("clicked");
+    debugPrint("👉 [SignUp] Register button clicked");
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     // Validation
     if (!_isValidFullName(username)) {
+      debugPrint("❌ [SignUp] Invalid full name: '$username'");
       Fluttertoast.showToast(msg: "Please enter full name (First & Last).");
       return;
     }
     if (!_isValidEmail(email)) {
+      debugPrint("❌ [SignUp] Invalid email: '$email'");
       Fluttertoast.showToast(msg: "Enter a valid email.");
       return;
     }
     if (!_isValidPassword(password)) {
+      debugPrint("❌ [SignUp] Invalid password length");
       Fluttertoast.showToast(msg: "Password must be at least 6 characters.");
       return;
     }
@@ -116,68 +119,141 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> with TickerPr
     setState(() => _isLoading = true);
 
     try {
-      // Sign out any current user and clear ALL old data
-      await _auth.signOut();
-      await DataCleanupService.clearAllData();
-      
-      // Check if user exists and handle Google-only case
-      final methods = await _auth.fetchSignInMethodsForEmail(email);
-      if (methods.isNotEmpty) {
-        if (methods.contains('google.com') && !methods.contains('password')) {
-          Fluttertoast.showToast(
-            msg: 'This email is already registered via Google. Please sign in using Google.',
-          );
-          setState(() => _isLoading = false);
-          return;
+      debugPrint("👉 [SignUp] Step 1: Clearing current auth session & old local data...");
+      try {
+        await _auth.signOut();
+        await DataCleanupService.clearAllData();
+      } catch (cleanupErr) {
+        debugPrint("⚠️ [SignUp] Error during cleanup (non-fatal): $cleanupErr");
+      }
+
+      debugPrint("👉 [SignUp] Step 2: Checking existing sign-in methods for $email...");
+      try {
+        final methods = await _auth.fetchSignInMethodsForEmail(email);
+        debugPrint("👉 [SignUp] Existing methods found: $methods");
+        if (methods.isNotEmpty) {
+          if (methods.contains('google.com') && !methods.contains('password')) {
+            debugPrint("❌ [SignUp] Email registered via Google only");
+            Fluttertoast.showToast(
+              msg: 'This email is already registered via Google. Please sign in using Google.',
+            );
+            if (mounted) setState(() => _isLoading = false);
+            return;
+          }
+          debugPrint("⚠️ [SignUp] User already exists according to fetchSignInMethodsForEmail. Attempting sign-in...");
+          try {
+            final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+            debugPrint("✅ [SignUp] Successfully signed in existing user UID: ${cred.user?.uid}");
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SetupFlow()),
+              );
+            }
+            return;
+          } catch (signInErr) {
+            debugPrint("❌ [SignUp] Sign-in with existing user failed: $signInErr");
+            Fluttertoast.showToast(msg: "User already exists with this email. Please log in.");
+            if (mounted) setState(() => _isLoading = false);
+            return;
+          }
         }
-        Fluttertoast.showToast(msg: "User already exists with this email.");
-        setState(() => _isLoading = false);
-        return;
+      } catch (methodErr) {
+        debugPrint("⚠️ [SignUp] fetchSignInMethodsForEmail failed or blocked (proceeding to createUser): $methodErr");
       }
 
-      // Create user
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      debugPrint("👉 [SignUp] Step 3: Calling createUserWithEmailAndPassword...");
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final uid = userCredential.user?.uid ?? _auth.currentUser?.uid;
+      debugPrint("✅ [SignUp] Step 4: Auth user created successfully. UID: $uid");
 
-      final uid = _auth.currentUser?.uid;
       if (uid != null) {
-        // Save to Firestore simple user profile
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .set({
-          'name': username,
-          'email': email,
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        debugPrint("👉 [SignUp] Step 5: Saving profile to Firestore & Hive...");
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .set({
+            'name': username,
+            'email': email,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 4));
+          debugPrint("✅ [SignUp] Firestore user profile saved.");
+        } catch (firestoreError) {
+          debugPrint("⚠️ [SignUp] Warning: Failed to save Firestore profile (continuing anyway): $firestoreError");
+        }
 
-        // Save locally to Hive
-        await HiveStorage.saveUserProfile(userId: uid, name: username, email: email);
+        try {
+          await HiveStorage.saveUserProfile(userId: uid, name: username, email: email);
+          debugPrint("✅ [SignUp] Local Hive user profile saved.");
+        } catch (hiveError) {
+          debugPrint("⚠️ [SignUp] Warning: Failed to save Hive profile (continuing anyway): $hiveError");
+        }
       }
 
-      // Navigate to SetupFlow
+      debugPrint("👉 [SignUp] Step 6: Navigating to SetupFlow...");
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const SetupFlow()),
         );
+        debugPrint("✅ [SignUp] Navigation to SetupFlow executed.");
+      } else {
+        debugPrint("❌ [SignUp] Widget not mounted when attempting navigation!");
       }
     } on FirebaseAuthException catch (e) {
-      Fluttertoast.showToast(msg: e.message ?? "Something went wrong.");
+      debugPrint("❌ [SignUp] FirebaseAuthException: code=${e.code}, message=${e.message}");
+      if (e.code == 'email-already-in-use') {
+        try {
+          debugPrint("👉 [SignUp] Attempting sign-in because email is already in use...");
+          final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+          debugPrint("✅ [SignUp] Logged in successfully with existing account: ${cred.user?.uid}");
+          Fluttertoast.showToast(msg: "Account already exists. Signed you in!");
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const SetupFlow()),
+            );
+          }
+          return;
+        } catch (signInErr) {
+          debugPrint("❌ [SignUp] Sign-in fallback failed: $signInErr");
+          Fluttertoast.showToast(msg: "Email already in use. Please check your password or login.");
+        }
+      } else {
+        Fluttertoast.showToast(msg: e.message ?? "Registration failed.");
+      }
+    } catch (e, stack) {
+      debugPrint("❌ [SignUp] General Exception caught in _signUp: $e\n$stack");
+      Fluttertoast.showToast(msg: "Registration error: ${e.toString()}");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      debugPrint("👉 [SignUp] _signUp execution completed.");
     }
   }
 
   Future<void> _signUpWithGoogle() async {
+    debugPrint("👉 [GoogleSignUp] Google sign-up initiated");
     setState(() => _isLoading = true);
     try {
-      // Sign out any current user and clear ALL old data
-      await _auth.signOut();
-      await DataCleanupService.clearAllData();
-      
+      debugPrint("👉 [GoogleSignUp] Step 1: Clearing current auth session & old data...");
+      try {
+        await _auth.signOut();
+        await DataCleanupService.clearAllData();
+      } catch (cleanupErr) {
+        debugPrint("⚠️ [GoogleSignUp] Error during cleanup (non-fatal): $cleanupErr");
+      }
+
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        setState(() => _isLoading = false);
+        debugPrint("⚠️ [GoogleSignUp] User cancelled Google Sign-In picker");
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
       final googleAuth = await googleUser.authentication;
@@ -186,40 +262,56 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> with TickerPr
         idToken: googleAuth.idToken,
       );
       final cred = await _auth.signInWithCredential(credential);
+      final user = cred.user;
+      debugPrint("✅ [GoogleSignUp] User signed in via Google. UID: ${user?.uid}");
 
       // Save profile to Firestore + Hive
-      final user = cred.user;
       if (user != null) {
-        
         final displayName = user.displayName ?? _usernameController.text.trim();
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({
-          'name': displayName,
-          'email': user.email ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        await HiveStorage.saveUserProfile(
-          userId: user.uid,
-          name: displayName,
-          email: user.email ?? '',
-        );
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            'name': displayName,
+            'email': user.email ?? '',
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 4));
+          debugPrint("✅ [GoogleSignUp] Firestore profile saved.");
+        } catch (e) {
+          debugPrint("⚠️ [GoogleSignUp] Firestore profile save error: $e");
+        }
+
+        try {
+          await HiveStorage.saveUserProfile(
+            userId: user.uid,
+            name: displayName,
+            email: user.email ?? '',
+          );
+          debugPrint("✅ [GoogleSignUp] Hive profile saved.");
+        } catch (e) {
+          debugPrint("⚠️ [GoogleSignUp] Hive profile save error: $e");
+        }
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        debugPrint("❌ [GoogleSignUp] Widget not mounted when attempting navigation!");
+        return;
+      }
+      debugPrint("👉 [GoogleSignUp] Navigating to SetupFlow...");
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const SetupFlow()),
       );
     } on FirebaseAuthException catch (e) {
+      debugPrint("❌ [GoogleSignUp] FirebaseAuthException: code=${e.code}, message=${e.message}");
       String msg = e.message ?? 'Google sign-in failed';
       if (e.code == 'account-exists-with-different-credential') {
         final email = e.email;
         if (email != null) {
           final methods = await _auth.fetchSignInMethodsForEmail(email);
           if (methods.contains('password') && methods.contains('google.com')) {
-            // Firebase can merge; ask user to sign in using either, then link in app
             msg = 'Account exists with Email and Google. Sign in then link accounts in settings.';
           } else if (methods.contains('password')) {
             msg = 'Email already registered with Email/Password. Please login with Email.';
@@ -227,7 +319,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> with TickerPr
         }
       }
       Fluttertoast.showToast(msg: msg);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint("❌ [GoogleSignUp] General error: $e\n$stack");
       Fluttertoast.showToast(msg: 'Error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);

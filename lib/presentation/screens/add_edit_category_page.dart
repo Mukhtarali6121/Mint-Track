@@ -6,13 +6,17 @@ import '../../theme/app_colors.dart';
 class AddEditCategoryPage extends StatefulWidget {
   final Category? existingCategory;
   final bool isExpense;
+  final List<Category> currentCategories;
   final Function(Category) onSave;
+  final Function(List<Category>)? onAddMultiple;
 
   const AddEditCategoryPage({
     super.key,
     this.existingCategory,
     required this.isExpense,
+    this.currentCategories = const [],
     required this.onSave,
+    this.onAddMultiple,
   });
 
   @override
@@ -20,387 +24,372 @@ class AddEditCategoryPage extends StatefulWidget {
 }
 
 class _AddEditCategoryPageState extends State<AddEditCategoryPage> {
-  late TextEditingController _nameController;
-  late String _selectedIcon;
-  late Color _selectedColor;
-  late int _selectedPosition;
+  final Set<String> _selectedCategories = {};
 
-  final List<String> _availableIcons = [
-    'food', 'drinks', 'transportation', 'housing', 'shopping',
-    'health', 'fitness', 'entertainment', 'games', 'education',
-    'loans', 'savings', 'investments', 'travel', 'gifts',
-    'donations', 'beauty', 'taxes', 'salary', 'business',
-    'interest income', 'rental income', 'others'
+  static const List<String> expenseMasterCategories = [
+    'Insurance',
+    'Investment',
+    'Fuel and Transportation',
+    'Credit Card Bill',
+    'Cash Withdrawal',
+    'Gifts',
+    'Personal Care',
+    'Repair',
+    'Self Care',
+    'Birthdays',
+    'Yoga & Meditation',
+    'Fitness',
+    'Renovation',
+    'Bills & Utilities',
+    'Groceries',
+    'Food & Dining',
+    'Entertainment',
+    'Hospital',
+    'Charges',
+    'Tax',
+    'Education',
+    'Loan',
+    'Shopping',
+    'Subscription',
+    'Travel',
   ];
 
-  final List<Color> _availableColors = [
-    Colors.blue.shade200,
-    Colors.green.shade200,
-    Colors.orange.shade200,
-    Colors.purple.shade200,
-    Colors.pink.shade200,
-    Colors.teal.shade200,
-    Colors.indigo.shade200,
-    Colors.cyan.shade200,
-    Colors.lime.shade200,
-    Colors.amber.shade200,
-    Colors.red.shade200,
-    Colors.deepOrange.shade200,
-    Colors.deepPurple.shade200,
-    Colors.lightBlue.shade200,
-    Colors.lightGreen.shade200,
+  static const List<String> incomeMasterCategories = [
+    'Investment',
+    'Cash Withdrawal',
+    'Gifts',
+    'Birthdays',
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(
-      text: widget.existingCategory?.name ?? '',
-    );
-    _selectedIcon = widget.existingCategory?.iconName ?? 'category';
-    _selectedColor = widget.existingCategory?.color ?? Colors.blue.shade200;
-    _selectedPosition = widget.existingCategory?.position ?? 0;
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  String _getIconPath(String iconName) {
-    // Map category names to their corresponding SVG file paths
+  static String getIconPath(String name) {
     const Map<String, String> iconMap = {
-      // Expense categories
-      'food': 'assets/images/ic_vector_food.svg',
-      'drinks': 'assets/images/ic_vector_drink.svg',
-      'transportation': 'assets/images/ic_vector_transportation.svg',
-      'housing': 'assets/images/ic_vector_home.svg',
-      'shopping': 'assets/images/ic_vector_shopping_bag.svg',
-      'health': 'assets/images/ic_vector_health.svg',
-      'fitness': 'assets/images/ic_vector_fitness.svg',
-      'entertainment': 'assets/images/ic_vector_entertainment.svg',
-      'games': 'assets/images/ic_vector_game.svg',
-      'education': 'assets/images/ic_vector_education.svg',
-      'loans': 'assets/images/ic_vector_loan.svg',
-      'savings': 'assets/images/ic_vector_investment.svg',
-      'investments': 'assets/images/ic_vector_investment.svg',
-      'travel': 'assets/images/ic_vector_travel.svg',
-      'gifts': 'assets/images/ic_vector_gifts.svg',
-      'donations': 'assets/images/ic_vector_donate.svg',
-      'beauty': 'assets/images/ic_vector_beauty.svg',
-      'taxes': 'assets/images/ic_vector_tax.svg',
-      'others': 'assets/images/ic_vector_other.svg',
-      
-      // Income categories
-      'salary': 'assets/images/ic_vector_salary.svg',
-      'business': 'assets/images/ic_vector_business.svg',
-      'interest income': 'assets/images/ic_vector_interest_income.svg',
-      'rental income': 'assets/images/ic_vector_rental_income.svg',
+      'insurance': 'assets/images/new/ic_insurance.svg',
+      'investment': 'assets/images/new/ic_investment.svg',
+      'investments': 'assets/images/new/ic_investment.svg',
+      'fuel and transportation': 'assets/images/new/ic_fuel.svg',
+      'fuel & transportation': 'assets/images/new/ic_fuel.svg',
+      'fuel': 'assets/images/new/ic_fuel.svg',
+      'transportation': 'assets/images/new/ic_fuel.svg',
+      'credit card bill': 'assets/images/new/ic_credit_card.svg',
+      'credit card': 'assets/images/new/ic_credit_card.svg',
+      'credit_card': 'assets/images/new/ic_credit_card.svg',
+      'creditcard': 'assets/images/new/ic_credit_card.svg',
+      'cash withdrawal': 'assets/images/new/ic_family_transfer.svg',
+      'cash_withdrawal': 'assets/images/new/ic_family_transfer.svg',
+      'family transfer': 'assets/images/new/ic_family_transfer.svg',
+      'family_transfer': 'assets/images/new/ic_family_transfer.svg',
+      'gifts': 'assets/images/new/ic_gift.svg',
+      'gift': 'assets/images/new/ic_gift.svg',
+      'personal care': 'assets/images/new/ic_personal_care.svg',
+      'personal_care': 'assets/images/new/ic_personal_care.svg',
+      'personalcare': 'assets/images/new/ic_personal_care.svg',
+      'beauty': 'assets/images/new/ic_personal_care.svg',
+      'repair': 'assets/images/new/ic_repairs.svg',
+      'repairs': 'assets/images/new/ic_repairs.svg',
+      'maintenance': 'assets/images/new/ic_repairs.svg',
+      'maintenance & repairs': 'assets/images/new/ic_repairs.svg',
+      'self care': 'assets/images/new/ic_mental_wellness.svg',
+      'self_care': 'assets/images/new/ic_mental_wellness.svg',
+      'mental wellness': 'assets/images/new/ic_mental_wellness.svg',
+      'mental_wellness': 'assets/images/new/ic_mental_wellness.svg',
+      'wellness': 'assets/images/new/ic_mental_wellness.svg',
+      'birthdays': 'assets/images/new/ic_birthday.svg',
+      'birthday': 'assets/images/new/ic_birthday.svg',
+      'yoga & meditation': 'assets/images/new/ic_yoga.svg',
+      'yoga and meditation': 'assets/images/new/ic_yoga.svg',
+      'yoga': 'assets/images/new/ic_yoga.svg',
+      'fitness': 'assets/images/new/ic_gym.svg',
+      'gym': 'assets/images/new/ic_gym.svg',
+      'renovation': 'assets/images/new/ic_renovation.svg',
+      'renovations': 'assets/images/new/ic_renovation.svg',
+      'home renovation': 'assets/images/new/ic_renovation.svg',
+      'bills & utilities': 'assets/images/new/ic_bills_utilities.svg',
+      'bills and utilities': 'assets/images/new/ic_bills_utilities.svg',
+      'bills': 'assets/images/new/ic_bills_utilities.svg',
+      'utilities': 'assets/images/new/ic_bills_utilities.svg',
+      'groceries': 'assets/images/new/ic_groceries.svg',
+      'grocery': 'assets/images/new/ic_groceries.svg',
+      'food & dining': 'assets/images/new/ic_food.svg',
+      'food and dining': 'assets/images/new/ic_food.svg',
+      'food': 'assets/images/new/ic_food.svg',
+      'dining': 'assets/images/new/ic_food.svg',
+      'entertainment': 'assets/images/new/ic_entertainment.svg',
+      'entertainments': 'assets/images/new/ic_entertainment.svg',
+      'movie': 'assets/images/new/ic_entertainment.svg',
+      'movies': 'assets/images/new/ic_entertainment.svg',
+      'hospital': 'assets/images/new/ic_hospital.svg',
+      'hospitals': 'assets/images/new/ic_hospital.svg',
+      'medical': 'assets/images/new/ic_hospital.svg',
+      'health': 'assets/images/new/ic_hospital.svg',
+      'healthcare': 'assets/images/new/ic_hospital.svg',
+      'charges': 'assets/images/new/ic_charges.svg',
+      'charge': 'assets/images/new/ic_charges.svg',
+      'fee': 'assets/images/new/ic_charges.svg',
+      'fees': 'assets/images/new/ic_charges.svg',
+      'tax': 'assets/images/new/ic_tax.svg',
+      'taxes': 'assets/images/new/ic_tax.svg',
+      'education': 'assets/images/new/ic_education.svg',
+      'studies': 'assets/images/new/ic_education.svg',
+      'study': 'assets/images/new/ic_education.svg',
+      'college': 'assets/images/new/ic_education.svg',
+      'school': 'assets/images/new/ic_education.svg',
+      'tuition': 'assets/images/new/ic_education.svg',
+      'loan': 'assets/images/new/ic_loan.svg',
+      'loans': 'assets/images/new/ic_loan.svg',
+      'emi': 'assets/images/new/ic_loan.svg',
+      'debt': 'assets/images/new/ic_loan.svg',
+      'shopping': 'assets/images/new/ic_shopping.svg',
+      'clothes': 'assets/images/new/ic_shopping.svg',
+      'clothing': 'assets/images/new/ic_shopping.svg',
+      'store': 'assets/images/new/ic_shopping.svg',
+      'subscription': 'assets/images/new/ic_subscription.svg',
+      'subscriptions': 'assets/images/new/ic_subscription.svg',
+      'membership': 'assets/images/new/ic_subscription.svg',
+      'memberships': 'assets/images/new/ic_subscription.svg',
+      'travel': 'assets/images/new/ic_travel.svg',
+      'travels': 'assets/images/new/ic_travel.svg',
+      'vacation': 'assets/images/new/ic_travel.svg',
+      'flight': 'assets/images/new/ic_travel.svg',
+      'trip': 'assets/images/new/ic_travel.svg',
+      'holiday': 'assets/images/new/ic_travel.svg',
+      'other': 'assets/images/new/ic_others.svg',
+      'others': 'assets/images/new/ic_others.svg',
     };
-
-    return iconMap[iconName.toLowerCase()] ?? 'assets/images/ic_vector_other.svg';
+    return iconMap[name.toLowerCase().trim()] ??
+        'assets/images/new/ic_others.svg';
   }
 
-  void _saveCategory() {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Category name cannot be empty')),
+  void _saveSelectedCategories() {
+    if (_selectedCategories.isEmpty) return;
+
+    final newCategories = _selectedCategories.map((name) {
+      return Category(
+        name: name,
+        iconName: name.toLowerCase().trim(),
+        colorValue: Colors.white.value,
+        position: widget.currentCategories.length,
       );
-      return;
+    }).toList();
+
+    if (widget.onAddMultiple != null) {
+      widget.onAddMultiple!(newCategories);
+    } else {
+      for (final cat in newCategories) {
+        widget.onSave(cat);
+      }
     }
 
-    final category = Category(
-      name: name,
-      iconName: _selectedIcon,
-      colorValue: _selectedColor.value,
-      position: _selectedPosition,
-    );
-
-    widget.onSave(category);
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.existingCategory != null;
-    
+    final masterList =
+        widget.isExpense ? expenseMasterCategories : incomeMasterCategories;
+    final activeNames = widget.currentCategories
+        .map((c) => c.name.toLowerCase().trim())
+        .toSet();
+
+    // Filter available categories that have not yet been added
+    final availableCategories = masterList
+        .where((name) => !activeNames.contains(name.toLowerCase().trim()))
+        .toList();
+
     return Scaffold(
       backgroundColor: AppColors.backgroundScaffold,
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Category' : 'Add Category'),
+        title: Text(
+          widget.isExpense ? 'Add Expense Category' : 'Add Income Category',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         backgroundColor: AppColors.backgroundScaffold,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        actions: [
-          TextButton(
-            onPressed: _saveCategory,
-            child: Text(
-              isEditing ? 'Save' : 'Add',
-              style: const TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Category Name Section
-            const Text(
-              'Category Name',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _nameController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Enter category name',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                filled: true,
-                fillColor: Colors.grey.shade800,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Preview Section
-            const Text(
-              'Preview',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade800,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _selectedColor,
-                      borderRadius: BorderRadius.circular(8),
+      body: availableCategories.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 64,
+                      color: AppColors.accentGreen,
                     ),
-                    child: SvgPicture.asset(
-                      _getIconPath(_selectedIcon),
-                      colorFilter: const ColorFilter.mode(
-                        Colors.white,
-                        BlendMode.srcIn,
+                    const SizedBox(height: 16),
+                    const Text(
+                      'All Categories Added',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
-                      width: 24,
-                      height: 24,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _nameController.text.isEmpty ? 'Category Name' : _nameController.text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
+                    const SizedBox(height: 8),
+                    Text(
+                      'You have already added all available ${widget.isExpense ? 'expense' : 'income'} categories.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text(
+                    'Select from available categories',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Color Selection Section
-            const Text(
-              'Select Color',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade800,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 10,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
                 ),
-                itemCount: _availableColors.length,
-                itemBuilder: (context, index) {
-                  final color = _availableColors[index];
-                  final isSelected = _selectedColor == color;
-                  
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedColor = color;
-                      });
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: isSelected
-                            ? Border.all(color: Colors.white, width: 3)
-                            : null,
-                      ),
-                      child: isSelected
-                          ? const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 20,
-                            )
-                          : null,
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    itemCount: availableCategories.length,
+                    itemBuilder: (context, index) {
+                      final categoryName = availableCategories[index];
+                      final isSelected =
+                          _selectedCategories.contains(categoryName);
+                      final iconPath = getIconPath(categoryName);
 
-            // Icon Selection Section
-            const Text(
-              'Select Icon',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade800,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 6,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: _availableIcons.length,
-                itemBuilder: (context, index) {
-                  final iconName = _availableIcons[index];
-                  final isSelected = _selectedIcon == iconName;
-                  
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedIcon = iconName;
-                      });
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected ? _selectedColor : Colors.grey.shade700,
-                        borderRadius: BorderRadius.circular(8),
-                        border: isSelected
-                            ? Border.all(color: Colors.white, width: 2)
-                            : null,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: SvgPicture.asset(
-                          _getIconPath(iconName),
-                          colorFilter: const ColorFilter.mode(
-                            Colors.white,
-                            BlendMode.srcIn,
+                      return Card(
+                        color: Colors.white,
+                        elevation: 0,
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.accentGreen
+                                : Colors.grey.shade200,
+                            width: isSelected ? 1.6 : 1.0,
                           ),
-                          width: 20,
-                          height: 20,
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                _selectedCategories.remove(categoryName);
+                              } else {
+                                _selectedCategories.add(categoryName);
+                              }
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentGreen.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: SvgPicture.asset(
+                                    iconPath,
+                                    width: 22,
+                                    height: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    categoryName,
+                                    style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 15,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.accentGreen
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.accentGreen
+                                          : Colors.grey.shade400,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: isSelected
+                                      ? const Icon(
+                                          Icons.check,
+                                          size: 14,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (_selectedCategories.isNotEmpty)
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _saveSelectedCategories,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accentGreen,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            'Add ${_selectedCategories.length} ${_selectedCategories.length == 1 ? 'Category' : 'Categories'}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 24),
-
-            // Position Section (only for editing)
-            // if (isEditing) ...[
-            //   const Text(
-            //     'Position',
-            //     style: TextStyle(
-            //       fontSize: 18,
-            //       fontWeight: FontWeight.bold,
-            //       color: Colors.black87,
-            //     ),
-            //   ),
-            //   const SizedBox(height: 8),
-            //   Container(
-            //     padding: const EdgeInsets.all(16),
-            //     decoration: BoxDecoration(
-            //       color: Colors.grey.shade800,
-            //       borderRadius: BorderRadius.circular(12),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         const Text(
-            //           'Position: ',
-            //           style: TextStyle(color: Colors.white),
-            //         ),
-            //         Expanded(
-            //           child: Slider(
-            //             value: _selectedPosition.toDouble(),
-            //             min: 0,
-            //             max: 10,
-            //             divisions: 10,
-            //             activeColor: _selectedColor,
-            //             inactiveColor: Colors.grey.shade600,
-            //             onChanged: (value) {
-            //               setState(() {
-            //                 _selectedPosition = value.round();
-            //               });
-            //             },
-            //           ),
-            //         ),
-            //         Text(
-            //           _selectedPosition.toString(),
-            //           style: const TextStyle(color: Colors.white),
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-            // ],
-            //
-          ],
-        ),
-      ),
     );
   }
 }

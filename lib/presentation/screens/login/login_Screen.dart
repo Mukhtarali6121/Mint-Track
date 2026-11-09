@@ -150,11 +150,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         } catch (e) {
           Fluttertoast.showToast(msg: "Failed to sync setup data: $e");
         }
-      }else{
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const SetupFlow()),
-        );
+      } else {
+        debugPrint("👉 [Login] SetupData does not exist for user. Navigating to SetupFlow...");
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const SetupFlow()),
+          );
+        }
+        return;
       }
 
       // 2️⃣ Fetch transactions from Firestore

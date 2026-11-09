@@ -5,21 +5,23 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../widgets/category_picker.dart';
-import '../../widgets/goal_selection_dialog.dart';
-import '../../models.dart';
-import '../../models/dynamic_category.dart';
-import '../../models/recurring_transaction.dart';
-import '../../models/goal_contribution.dart';
-import '../../providers/transaction_provider.dart';
-import '../../providers/account_provider.dart';
-import '../../providers/recurring_transaction_provider.dart';
-import '../../providers/goal_provider.dart';
+
 import '../../common/feature_flags.dart';
 import '../../common/goal_contribution_hive_storage.dart';
+import '../../models.dart';
+import '../../models/dynamic_category.dart';
+import '../../models/goal_contribution.dart';
+import '../../models/recurring_transaction.dart';
+import '../../providers/account_provider.dart';
+import '../../providers/goal_provider.dart';
+import '../../providers/recurring_transaction_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../../widgets/category_picker.dart';
+import '../../widgets/goal_selection_dialog.dart';
 
 class EditTransactionScreen extends StatefulWidget {
   const EditTransactionScreen({super.key, this.existing});
+
   final TransactionItem? existing;
 
   @override
@@ -42,8 +44,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   String? _selectedGoalId;
 
   String _getCategoryIconPath(String categoryName) {
-    final dynamicCategory =
-    DynamicCategory(name: categoryName, iconName: categoryName);
+    final dynamicCategory = DynamicCategory(
+      name: categoryName,
+      iconName: categoryName,
+    );
     return dynamicCategory.iconPath;
   }
 
@@ -77,6 +81,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => CategoryPickerBottomSheet(
         transactionType: _type,
         selectedCategory: _category,
@@ -94,7 +99,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     if (accounts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No accounts available. Please create an account first.'),
+          content: Text(
+            'No accounts available. Please create an account first.',
+          ),
         ),
       );
       return;
@@ -141,7 +148,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 title: Text(
                   account.name,
                   style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 trailing: isSelected
@@ -167,68 +176,72 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   Future<void> _save() async {
     // Prevent multiple simultaneous saves
     if (_isSaving) return;
-    
+
     setState(() {
       _isSaving = true;
     });
-    
+
     try {
-    // Validate amount
-    final amountText = _amountController.text.trim();
-    if (amountText.isEmpty) {
+      // Validate amount
+      final amountText = _amountController.text.trim();
+      if (amountText.isEmpty) {
         if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an amount'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter an amount'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
         setState(() {
           _isSaving = false;
         });
-      return;
-    }
-    
-    final parsedAmount = double.tryParse(amountText);
-    if (parsedAmount == null || parsedAmount <= 0) {
+        return;
+      }
+
+      final parsedAmount = double.tryParse(amountText);
+      if (parsedAmount == null || parsedAmount <= 0) {
         if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid amount'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter a valid amount'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
         setState(() {
           _isSaving = false;
         });
-      return;
-    }
-    
-    // Validate title if recurring is enabled
-    if (_makeRecurring && FeatureFlags.recurringTransactionsFeatureEnabled && _titleController.text.trim().isEmpty) {
+        return;
+      }
+
+      // Validate title if recurring is enabled
+      if (_makeRecurring &&
+          FeatureFlags.recurringTransactionsFeatureEnabled &&
+          _titleController.text.trim().isEmpty) {
         if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Title is required for recurring transactions'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Title is required for recurring transactions'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
         setState(() {
           _isSaving = false;
         });
-      return;
-    }
-    
+        return;
+      }
+
       final provider = context.read<TransactionProvider>();
-      
+
       // If make recurring is enabled, create recurring transaction first to get its ID
       String? recurringTransactionId;
-      if (widget.existing == null && _makeRecurring && FeatureFlags.recurringTransactionsFeatureEnabled) {
+      if (widget.existing == null &&
+          _makeRecurring &&
+          FeatureFlags.recurringTransactionsFeatureEnabled) {
         final recurringProvider = context.read<RecurringTransactionProvider>();
-        
+
         // Create a temporary recurring transaction to calculate next occurrence
         final tempRecurring = RecurringTransaction(
           id: '',
@@ -250,11 +263,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           userId: '',
           isSynced: false,
         );
-        
+
         // Calculate the next occurrence date (not today, since we already created today's transaction)
         final nextOccurrenceDate = tempRecurring.calculateNextOccurrence(_date);
         final now = DateTime.now();
-        
+
         final recurringTransaction = RecurringTransaction(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title: _titleController.text.trim(),
@@ -263,13 +276,17 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           frequency: _recurringFrequency,
           startDate: _date,
           endDate: null,
-          nextOccurrence: nextOccurrenceDate, // Set to next occurrence, not today
+          nextOccurrence: nextOccurrenceDate,
+          // Set to next occurrence, not today
           category: _category,
           accountId: _selectedAccountId,
           isActive: true,
-          autoApprove: true, // Auto-approve recurring transactions created from edit transaction
-          lastProcessedDate: now, // Mark today as processed since we already created the transaction
-          totalOccurrences: 1, // We've already created the first occurrence
+          autoApprove: true,
+          // Auto-approve recurring transactions created from edit transaction
+          lastProcessedDate: now,
+          // Mark today as processed since we already created the transaction
+          totalOccurrences: 1,
+          // We've already created the first occurrence
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
@@ -280,9 +297,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         await recurringProvider.addRecurringTransaction(recurringTransaction);
         recurringTransactionId = recurringTransaction.id;
       }
-      
+
       final newItem = TransactionItem(
-        id: widget.existing?.id ??
+        id:
+            widget.existing?.id ??
             DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
         amount: parsedAmount,
@@ -293,13 +311,14 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             ? null
             : _noteController.text.trim(),
         accountId: _selectedAccountId,
-        recurringTransactionId: recurringTransactionId, // Link to recurring transaction if created
+        recurringTransactionId:
+            recurringTransactionId, // Link to recurring transaction if created
       );
       String? transactionId;
       if (widget.existing == null) {
         await provider.add(newItem);
         transactionId = newItem.id;
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -314,7 +333,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       }
 
       // Add contribution to goal if checkbox was checked
-      if (_addToGoal && _selectedGoalId != null && FeatureFlags.goalsFeatureEnabled) {
+      if (_addToGoal &&
+          _selectedGoalId != null &&
+          FeatureFlags.goalsFeatureEnabled) {
         await GoalContributionHiveStorage.init();
         final contribution = GoalContribution(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -327,12 +348,14 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
           isSynced: false,
         );
         await GoalContributionHiveStorage.saveContribution(contribution);
-        
+
         // Update goal progress
         final goalProvider = context.read<GoalProvider>();
         final goal = goalProvider.getGoal(_selectedGoalId!);
         if (goal != null) {
-          await goalProvider.updateAllProgress(context.read<TransactionProvider>());
+          await goalProvider.updateAllProgress(
+            context.read<TransactionProvider>(),
+          );
         }
       }
 
@@ -363,13 +386,16 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             return;
           }
 
-          final transactionId = widget.existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
+          final transactionId =
+              widget.existing?.id ??
+              DateTime.now().millisecondsSinceEpoch.toString();
           final selectedGoalId = await showDialog<String>(
             context: context,
             builder: (context) => GoalSelectionDialog(
               amount: amount,
               transactionId: transactionId,
-              transactionCategory: _category, // Pass the selected transaction category
+              transactionCategory:
+                  _category, // Pass the selected transaction category
             ),
           );
 
@@ -391,12 +417,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.all(_addToGoal ? 16 : 12),
         decoration: BoxDecoration(
-          color: _addToGoal 
+          color: _addToGoal
               ? AppColors.accentGreen.withOpacity(0.1)
               : AppColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: _addToGoal 
+            color: _addToGoal
                 ? AppColors.accentGreen.withOpacity(0.3)
                 : Colors.transparent,
             width: 1,
@@ -406,7 +432,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               color: AppColors.textPrimary.withOpacity(0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
-            )
+            ),
           ],
         ),
         child: Row(
@@ -423,11 +449,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: _addToGoal
-                  ? const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 16,
-                    )
+                  ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -440,8 +462,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: _addToGoal 
-                          ? AppColors.accentGreen 
+                      color: _addToGoal
+                          ? AppColors.accentGreen
                           : AppColors.textPrimary,
                     ),
                   ),
@@ -466,8 +488,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             ),
             Icon(
               Icons.savings,
-              color: _addToGoal 
-                  ? AppColors.accentGreen 
+              color: _addToGoal
+                  ? AppColors.accentGreen
                   : AppColors.textSecondary,
               size: 20,
             ),
@@ -479,12 +501,14 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
 
   Future<void> _deleteTransaction() async {
     if (widget.existing == null) return;
-    
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Transaction'),
-        content: const Text('Are you sure you want to delete this transaction? This action cannot be undone.'),
+        content: const Text(
+          'Are you sure you want to delete this transaction? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -515,10 +539,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         ? 'Add Expense'
         : 'Add Income';
 
-
     return Scaffold(
       backgroundColor: AppColors.backgroundScaffold,
-      resizeToAvoidBottomInset: false, // Prevent UI from moving up with keyboard
+      resizeToAvoidBottomInset: false,
+      // Prevent UI from moving up with keyboard
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -526,9 +550,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -536,76 +558,80 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Top section: Header and Toggle
-                      Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Column(
-                          children: [
-                            // Header
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Column(
+                        children: [
+                          // Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(
+                                  Icons.arrow_back_ios,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                titleText,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              isEditing
+                                  ? IconButton(
+                                      onPressed: _deleteTransaction,
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: 'Delete Transaction',
+                                    )
+                                  : const SizedBox(width: 48),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          // Expense / Income toggle
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundLight,
+                              borderRadius: BorderRadius.circular(40),
+                              border: Border.all(
+                                color: AppColors.accentGreen,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
                               children: [
-                                IconButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: Icon(Icons.arrow_back_ios,
-                                      color: AppColors.textPrimary),
+                                _toggleButton(
+                                  label: "Expenses",
+                                  selected: _type == TransactionType.expense,
+                                  onTap: () {
+                                    if (_type != TransactionType.expense) {
+                                      setState(() {
+                                        _type = TransactionType.expense;
+                                        _category = 'Others';
+                                      });
+                                    }
+                                  },
                                 ),
-                                Text(
-                                  titleText,
-                                  style: TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                _toggleButton(
+                                  label: "Income",
+                                  selected: _type == TransactionType.income,
+                                  onTap: () {
+                                    if (_type != TransactionType.income) {
+                                      setState(() {
+                                        _type = TransactionType.income;
+                                        _category = 'Others';
+                                      });
+                                    }
+                                  },
                                 ),
-                                isEditing
-                                    ? IconButton(
-                                        onPressed: _deleteTransaction,
-                                        icon: const Icon(Icons.delete_outline,
-                                            color: Colors.red),
-                                        tooltip: 'Delete Transaction',
-                                      )
-                                    : const SizedBox(width: 48),
                               ],
                             ),
-                            const SizedBox(height: 24),
-                            // Expense / Income toggle
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.backgroundLight,
-                                borderRadius: BorderRadius.circular(40),
-                                border: Border.all(color: AppColors.accentGreen, width: 1),
-                              ),
-                              child: Row(
-                                children: [
-                                  _toggleButton(
-                                    label: "Expenses",
-                                    selected: _type == TransactionType.expense,
-                                    onTap: () {
-                                      if (_type != TransactionType.expense) {
-                                        setState(() {
-                                          _type = TransactionType.expense;
-                                          _category = 'Others';
-                                        });
-                                      }
-                                    },
-                                  ),
-                                  _toggleButton(
-                                    label: "Income",
-                                    selected: _type == TransactionType.income,
-                                    onTap: () {
-                                      if (_type != TransactionType.income) {
-                                        setState(() {
-                                          _type = TransactionType.income;
-                                          _category = 'Others';
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
 
                       // Center section: Amount and Note
@@ -633,7 +659,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                   Flexible(
                                     child: TextFormField(
                                       controller: _amountController,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
                                       textAlign: TextAlign.left,
                                       style: TextStyle(
                                         fontSize: 42,
@@ -645,7 +674,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                         isDense: true,
                                         contentPadding: EdgeInsets.zero,
                                         hintStyle: TextStyle(
-                                          color: AppColors.textPrimary.withOpacity(0.5),
+                                          color: AppColors.textPrimary
+                                              .withOpacity(0.5),
                                           fontSize: 36,
                                           fontWeight: FontWeight.w400,
                                         ),
@@ -657,7 +687,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                         disabledBorder: InputBorder.none,
                                       ),
                                       inputFormatters: [
-                                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'^\d*\.?\d{0,2}'),
+                                        ),
                                         LengthLimitingTextInputFormatter(10),
                                       ],
                                     ),
@@ -672,7 +704,10 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                           // Title field
                           Center(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 0,
+                              ),
 
                               child: ConstrainedBox(
                                 constraints: const BoxConstraints(
@@ -684,9 +719,11 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                     controller: _titleController,
                                     textAlign: TextAlign.center,
                                     decoration: InputDecoration(
-                                      hintText: _makeRecurring ? "Title (Required)" : "Add Title",
+                                      hintText: _makeRecurring
+                                          ? "Title (Required)"
+                                          : "Add Title",
                                       hintStyle: TextStyle(
-                                        color: _makeRecurring 
+                                        color: _makeRecurring
                                             ? Colors.orange.withOpacity(0.7)
                                             : Colors.grey,
                                         fontSize: 12,
@@ -694,15 +731,22 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                       ),
                                       border: InputBorder.none,
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                            horizontal: 12,
+                                          ),
                                     ),
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    textCapitalization: TextCapitalization.sentences,
-                                    inputFormatters: [LengthLimitingTextInputFormatter(40)],
+                                    textCapitalization:
+                                        TextCapitalization.sentences,
+                                    inputFormatters: [
+                                      LengthLimitingTextInputFormatter(40),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -744,9 +788,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                               onTap: _pickAccount,
                               child: Builder(
                                 builder: (context) {
-                                  final accountProvider = context.watch<AccountProvider>();
-                                  final selectedAccount = accountProvider.getAccount(_selectedAccountId);
-                                  final accountName = selectedAccount?.name ?? 'Cash';
+                                  final accountProvider = context
+                                      .watch<AccountProvider>();
+                                  final selectedAccount = accountProvider
+                                      .getAccount(_selectedAccountId);
+                                  final accountName =
+                                      selectedAccount?.name ?? 'Cash';
                                   return _infoBox(
                                     icon: Icons.account_balance_wallet,
                                     text: accountName,
@@ -755,12 +802,15 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                               ),
                             ),
                             // Add to Goal Checkbox (only for income transactions)
-                            if (_type == TransactionType.income && FeatureFlags.goalsFeatureEnabled) ...[
-                              const SizedBox(height: 16),
-                              _buildAddToGoalCheckbox(),
-                            ],
+                            // Hidden as requested
+                            // if (_type == TransactionType.income && FeatureFlags.goalsFeatureEnabled) ...[
+                            //   const SizedBox(height: 16),
+                            //   _buildAddToGoalCheckbox(),
+                            // ],,
                             // Make Recurring Toggle (only for new transactions)
-                            if (widget.existing == null && FeatureFlags.recurringTransactionsFeatureEnabled) ...[
+                            if (widget.existing == null &&
+                                FeatureFlags
+                                    .recurringTransactionsFeatureEnabled) ...[
                               const SizedBox(height: 16),
                               _buildRecurringToggle(),
                             ],
@@ -771,14 +821,16 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                               child: ElevatedButton(
                                 onPressed: _isSaving ? null : _save,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isSaving 
+                                  backgroundColor: _isSaving
                                       ? AppColors.accentGreen.withOpacity(0.6)
                                       : AppColors.accentGreen,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(40),
                                   ),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                 ),
                                 child: _isSaving
                                     ? const SizedBox(
@@ -786,16 +838,19 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                                         width: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
                                         ),
                                       )
                                     : Text(
-                                  titleText,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                        titleText,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                             ),
                           ],
@@ -853,7 +908,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             color: AppColors.textPrimary.withOpacity(0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -888,7 +943,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             color: AppColors.textPrimary.withOpacity(0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -925,12 +980,12 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       duration: const Duration(milliseconds: 200),
       padding: EdgeInsets.all(_makeRecurring ? 16 : 12),
       decoration: BoxDecoration(
-        color: _makeRecurring 
+        color: _makeRecurring
             ? AppColors.accentGreen.withOpacity(0.1)
             : AppColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _makeRecurring 
+          color: _makeRecurring
               ? AppColors.accentGreen.withOpacity(0.3)
               : Colors.transparent,
           width: 1,
@@ -940,7 +995,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             color: AppColors.textPrimary.withOpacity(0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -953,8 +1008,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 children: [
                   Icon(
                     Icons.repeat,
-                    color: _makeRecurring 
-                        ? AppColors.accentGreen 
+                    color: _makeRecurring
+                        ? AppColors.accentGreen
                         : AppColors.textSecondary,
                     size: 20,
                   ),
@@ -962,8 +1017,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                   Text(
                     'Make this recurring',
                     style: TextStyle(
-                      color: _makeRecurring 
-                          ? AppColors.accentGreen 
+                      color: _makeRecurring
+                          ? AppColors.accentGreen
                           : AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,

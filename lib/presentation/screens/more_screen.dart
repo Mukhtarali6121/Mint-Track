@@ -829,7 +829,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
               onTap: _showFeedbackDialog,
             ),
 
-            const _SectionHeader(title: 'Notifications'),
+            /*const _SectionHeader(title: 'Notifications'),
             _NavTile(
               icon: Icons.notifications,
               label: 'Daily Reminders',
@@ -842,7 +842,7 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
                 activeColor: AppColors.accentGreen,
               ),
               onTap: _toggleNotifications,
-            ),
+            ),*/
 
             // if (_notificationsEnabled) ...[
             //   _NavTile(

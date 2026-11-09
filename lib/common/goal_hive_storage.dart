@@ -6,7 +6,9 @@ import '../models/goal.dart';
 
 class GoalHiveStorage {
   static const String _goalBoxName = 'goals';
+  static const String _deletedGoalBoxName = 'deleted_goals';
   static Box<Goal>? _goalBox;
+  static Box<String>? _deletedBox;
 
   /// Initialize goal box
   static Future<void> init() async {
@@ -76,6 +78,10 @@ class GoalHiveStorage {
         }
       }
     }
+
+    if (_deletedBox == null || !_deletedBox!.isOpen) {
+      _deletedBox = await Hive.openBox<String>(_deletedGoalBoxName);
+    }
   }
 
   /// Get current user ID
@@ -108,6 +114,35 @@ class GoalHiveStorage {
     debugPrint('Goal updated: ${goalWithUserId.id}');
   }
 
+  /// Track a deleted goal ID for cloud sync
+  static Future<void> _trackDeletedGoal(String goalId, String userId) async {
+    if (_deletedBox == null || !_deletedBox!.isOpen) {
+      _deletedBox = await Hive.openBox<String>(_deletedGoalBoxName);
+    }
+    await _deletedBox!.put(goalId, userId);
+  }
+
+  /// Get pending deleted goal IDs for current user
+  static List<String> getPendingDeletedIds() {
+    if (_deletedBox == null || !_deletedBox!.isOpen) return [];
+    final userId = _getUserId();
+    final List<String> result = [];
+    for (final entry in _deletedBox!.toMap().entries) {
+      if (entry.value == userId) {
+        result.add(entry.key.toString());
+      }
+    }
+    return result;
+  }
+
+  /// Clear synced deleted goal IDs
+  static Future<void> clearDeletedIds(List<String> ids) async {
+    if (_deletedBox == null || !_deletedBox!.isOpen) return;
+    for (final id in ids) {
+      await _deletedBox!.delete(id);
+    }
+  }
+
   /// Delete a goal from Hive
   static Future<void> deleteGoal(String id) async {
     await init();
@@ -115,6 +150,9 @@ class GoalHiveStorage {
       throw Exception('Goal box not initialized');
     }
     
+    final goal = _goalBox!.get(id);
+    final userId = goal?.userId ?? _getUserId();
+    await _trackDeletedGoal(id, userId);
     await _goalBox!.delete(id);
     debugPrint('Goal deleted: $id');
   }
@@ -166,10 +204,29 @@ class GoalHiveStorage {
     }
   }
 
+  /// Mark multiple goals as synced using atomic putAll
+  static Future<void> markMultipleAsSynced(List<String> ids) async {
+    await init();
+    if (_goalBox == null) {
+      throw Exception('Goal box not initialized');
+    }
+    
+    final Map<String, Goal> updates = {};
+    for (final id in ids) {
+      final goal = _goalBox!.get(id);
+      if (goal != null) {
+        updates[id] = goal.copyWith(isSynced: true);
+      }
+    }
+    if (updates.isNotEmpty) {
+      await _goalBox!.putAll(updates);
+    }
+  }
+
   /// Get sync statistics
   static Map<String, int> getSyncStatistics() {
     if (_goalBox == null || !_goalBox!.isOpen) {
-      return {'total': 0, 'synced': 0, 'unsynced': 0};
+      return {'total': 0, 'synced': 0, 'unsynced': 0, 'pendingDeletions': 0};
     }
     
     final userId = _getUserId();
@@ -179,11 +236,13 @@ class GoalHiveStorage {
     
     final synced = allGoals.where((goal) => goal.isSynced).length;
     final unsynced = allGoals.length - synced;
+    final pendingDeletions = getPendingDeletedIds().length;
     
     return {
       'total': allGoals.length,
       'synced': synced,
       'unsynced': unsynced,
+      'pendingDeletions': pendingDeletions,
     };
   }
 

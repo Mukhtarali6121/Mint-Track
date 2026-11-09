@@ -53,14 +53,36 @@ class _EditCategoriesPageState extends State<EditCategoriesPage>
       backgroundColor: AppColors.backgroundScaffold,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundScaffold,
-
-        title: const Text('Categories'),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text(
+          'Categories',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppColors.textPrimary,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: AppColors.accentGreen,
+          indicatorWeight: 2.5,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelColor: AppColors.accentGreen,
+          unselectedLabelColor: AppColors.textSecondary,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 15,
+          ),
+          dividerColor: Colors.grey.shade200,
           tabs: const [
             Tab(text: 'Expense'),
             Tab(text: 'Income'),
@@ -81,8 +103,12 @@ class _EditCategoriesPageState extends State<EditCategoriesPage>
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.accentGreen,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: const CircleBorder(),
         onPressed: _onFabPressed,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }
@@ -163,6 +189,7 @@ class _CategoryListTabState extends State<CategoryListTab> {
         builder: (context) => AddEditCategoryPage(
           existingCategory: existingCategory,
           isExpense: widget.transactionType == TransactionType.expense,
+          currentCategories: _categories,
           onSave: (category) async {
             if (existingCategory != null) {
               await _updateCategory(existingCategory, category);
@@ -170,9 +197,41 @@ class _CategoryListTabState extends State<CategoryListTab> {
               await _addCategory(category);
             }
           },
+          onAddMultiple: (newCategories) async {
+            await _addCategories(newCategories);
+          },
         ),
       ),
     );
+  }
+
+  Future<void> _addCategories(List<Category> newCategories) async {
+    if (newCategories.isEmpty) return;
+    try {
+      _showLoadingSnackBar(newCategories.length == 1
+          ? 'Adding category...'
+          : 'Adding ${newCategories.length} categories...');
+
+      final categoryMaps = newCategories.map((c) => c.toMap()).toList();
+      await _docRef.update({
+        _firestoreArrayName: FieldValue.arrayUnion(categoryMaps),
+      });
+
+      for (final cat in newCategories) {
+        await HiveStorage.addCategory(
+          cat,
+          widget.transactionType == TransactionType.expense,
+        );
+      }
+
+      _loadCategories();
+      _showSuccessSnackBar(newCategories.length == 1
+          ? 'Category "${newCategories.first.name}" added successfully'
+          : '${newCategories.length} categories added successfully');
+    } catch (e) {
+      debugPrint("Error adding categories: $e");
+      _showErrorSnackBar('Failed to add categories: ${e.toString()}');
+    }
   }
 
   Future<void> _addCategory(Category category) async {
@@ -357,82 +416,140 @@ class _CategoryListTabState extends State<CategoryListTab> {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(top: 10, bottom: 88),
       itemCount: _categories.length,
       itemBuilder: (context, index) {
         final category = _categories[index];
+        final isWhiteBg = category.colorValue == Colors.white.value ||
+            category.colorValue == 0xFFFFFFFF ||
+            category.color == Colors.white;
+
         return Card(
           color: Colors.white,
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: category.color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SvgPicture.asset(
-                category.iconPath,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
+          elevation: 0,
+          margin: const EdgeInsets.symmetric(
+            vertical: 4,
+            horizontal: 16,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: Colors.grey.shade200,
+              width: 1.0,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isWhiteBg
+                        ? AppColors.accentGreen.withValues(alpha: 0.12)
+                        : category.color,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SvgPicture.asset(
+                    category.iconPath,
+                    colorFilter: isWhiteBg
+                        ? null
+                        : const ColorFilter.mode(
+                            Colors.white,
+                            BlendMode.srcIn,
+                          ),
+                    width: 22,
+                    height: 22,
+                  ),
                 ),
-                width: 20,
-                height: 20,
-              ),
-            ),
-            title: Text(
-              category.displayName,
-              style: const TextStyle(color: Colors.black87,fontWeight: FontWeight.bold),
-            ),
-            // subtitle: Text(
-            //   'Position: ${category.position}',
-            //   style: TextStyle(color: Colors.grey.shade400),
-            // ),
-            // Only show the menu if there is more than one category
-            trailing: () {
-              if (category.name.toLowerCase() == 'other') {
-                return IconButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.grey),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("'Others' category cannot be modified."),
-                        duration: Duration(seconds: 2),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    category.displayName,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                // Trailing menu action
+                if (category.name.toLowerCase() == 'other' ||
+                    category.name.toLowerCase() == 'others')
+                  IconButton(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
+                    splashRadius: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("'Others' category cannot be modified."),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  )
+                else if (_categories.length > 1)
+                  Theme(
+                    data: Theme.of(context).copyWith(cardColor: Colors.white),
+                    child: PopupMenuButton<String>(
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: Colors.grey.shade700,
+                        size: 20,
                       ),
-                    );
-                  },
-                );
-              }
-
-              // For other categories, show the menu only if there is more than one category.
-              if (_categories.length > 1) {
-                return PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.black87),
-                  onSelected: (String result) {
-                    if (result == 'edit') {
-                      showAddOrEditCategoryDialog(existingCategory: category);
-                    } else if (result == 'delete') {
-                      _deleteCategory(category);
-                    }
-                  },
-                  itemBuilder: (BuildContext context) => [
-                    const PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Text('Edit'),
+                      splashRadius: 20,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      elevation: 3,
+                      color: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      onSelected: (String result) {
+                        if (result == 'delete') {
+                          _deleteCategory(category);
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem<String>(
+                          value: 'delete',
+                          height: 40,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Delete',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Text('Delete'),
-                    ),
-                  ],
-                );
-              }
-
-              // Otherwise, render nothing.
-              return null;
-            }(), // Immediately execute this anonymous function
-// Render nothing if only one category exists
+                  )
+                else
+                  const SizedBox(width: 20),
+              ],
+            ),
           ),
         );
       },

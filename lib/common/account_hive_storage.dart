@@ -5,7 +5,9 @@ import '../models/account.dart';
 
 class AccountHiveStorage {
   static const String _accountBoxName = 'accounts';
+  static const String _deletedAccountBoxName = 'deleted_accounts';
   static Box<Account>? _accountBox;
+  static Box<String>? _deletedBox;
 
   /// Initialize account box
   static Future<void> init() async {
@@ -40,6 +42,10 @@ class AccountHiveStorage {
         debugPrint('Adapter registered: ${Hive.isAdapterRegistered(3)}');
         rethrow;
       }
+    }
+
+    if (_deletedBox == null || !_deletedBox!.isOpen) {
+      _deletedBox = await Hive.openBox<String>(_deletedAccountBoxName);
     }
   }
 
@@ -114,9 +120,42 @@ class AccountHiveStorage {
     await _accountBox!.put(account.id, account);
   }
 
+  /// Track a deleted account ID for cloud sync
+  static Future<void> _trackDeletedAccount(String accountId, String userId) async {
+    if (accountId == 'cash') return; // never track cash account for deletion
+    if (_deletedBox == null || !_deletedBox!.isOpen) {
+      _deletedBox = await Hive.openBox<String>(_deletedAccountBoxName);
+    }
+    await _deletedBox!.put(accountId, userId);
+  }
+
+  /// Get pending deleted account IDs for current user
+  static List<String> getPendingDeletedIds() {
+    if (_deletedBox == null || !_deletedBox!.isOpen) return [];
+    final userId = _getUserId();
+    final List<String> result = [];
+    for (final entry in _deletedBox!.toMap().entries) {
+      if (entry.value == userId && entry.key != 'cash') {
+        result.add(entry.key.toString());
+      }
+    }
+    return result;
+  }
+
+  /// Clear synced deleted account IDs
+  static Future<void> clearDeletedIds(List<String> ids) async {
+    if (_deletedBox == null || !_deletedBox!.isOpen) return;
+    for (final id in ids) {
+      await _deletedBox!.delete(id);
+    }
+  }
+
   /// Delete account
   static Future<void> deleteAccount(String accountId) async {
-    if (_accountBox == null) return;
+    if (_accountBox == null || accountId == 'cash') return;
+    final account = _accountBox!.get(accountId);
+    final userId = account?.userId ?? _getUserId();
+    await _trackDeletedAccount(accountId, userId);
     await _accountBox!.delete(accountId);
   }
 
@@ -131,19 +170,37 @@ class AccountHiveStorage {
     }
   }
 
+  /// Mark multiple accounts as synced using atomic putAll
+  static Future<void> markMultipleAsSynced(List<String> accountIds) async {
+    if (_accountBox == null) return;
+    
+    final Map<String, Account> updates = {};
+    for (final id in accountIds) {
+      final account = _accountBox!.get(id);
+      if (account != null) {
+        updates[id] = account.copyWith(isSynced: true);
+      }
+    }
+    if (updates.isNotEmpty) {
+      await _accountBox!.putAll(updates);
+    }
+  }
+
   /// Get sync statistics
   static Map<String, int> getSyncStatistics() {
-    if (_accountBox == null) return {'total': 0, 'synced': 0, 'unsynced': 0};
+    if (_accountBox == null) return {'total': 0, 'synced': 0, 'unsynced': 0, 'pendingDeletions': 0};
     
     final userId = _getUserId();
     final userAccounts = _accountBox!.values
         .where((account) => account.userId == userId)
         .toList();
+    final pendingDeletions = getPendingDeletedIds().length;
     
     return {
       'total': userAccounts.length,
       'synced': userAccounts.where((a) => a.isSynced).length,
       'unsynced': userAccounts.where((a) => !a.isSynced).length,
+      'pendingDeletions': pendingDeletions,
     };
   }
 

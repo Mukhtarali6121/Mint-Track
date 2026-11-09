@@ -186,19 +186,30 @@ class TransactionProvider extends ChangeNotifier {
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // 1. Sync unsynced transactions (new/updated)
+      // 1. Sync unsynced transactions (new/updated) using atomic WriteBatch
       if (unsyncedTransactions.isNotEmpty) {
-      for (final transaction in unsyncedTransactions) {
-        await firestore
-            .collection('transactions')
-            .doc(userId) // document for the user
-            .collection('userTransactions') // subcollection for this user's transactions
-            .doc(transaction.id)
-            .set(transaction.toFirestoreMap());
+        const batchSize = 400; // under Firestore's 500 limit
+        for (var i = 0; i < unsyncedTransactions.length; i += batchSize) {
+          final end = (i + batchSize < unsyncedTransactions.length)
+              ? i + batchSize
+              : unsyncedTransactions.length;
+          final chunk = unsyncedTransactions.sublist(i, end);
+          final batch = firestore.batch();
 
-        // Mark as synced in Hive
-        await TransactionHiveStorage.markAsSynced(transaction.id);
-      }
+          for (final transaction in chunk) {
+            final docRef = firestore
+                .collection('transactions')
+                .doc(userId)
+                .collection('userTransactions')
+                .doc(transaction.id);
+            batch.set(docRef, transaction.toFirestoreMap());
+          }
+
+          await batch.commit();
+          final chunkIds = chunk.map((t) => t.id).toList();
+          await TransactionHiveStorage.markMultipleAsSynced(chunkIds);
+          debugPrint('Synced batch of ${chunk.length} transaction(s) to Firestore');
+        }
       }
 
       // 2. Sync deletions - delete transactions from Firestore that don't exist locally
@@ -215,44 +226,34 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
 
-  /// Sync deletions: Delete transactions from Firestore that don't exist locally
+  /// Sync deletions: Delete pending deleted transactions from Firestore without querying all documents
   Future<void> _syncTransactionDeletions() async {
     try {
+      final idsToDelete = TransactionHiveStorage.getPendingDeletedIds();
+      if (idsToDelete.isEmpty) return;
+
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // Get all local transaction IDs
-      final localTransactions = TransactionHiveStorage.getAllTransactions();
-      final localTransactionIds = localTransactions.map((t) => t.id).toSet();
+      // Firestore batch supports up to 500 operations; use chunk of 400
+      const batchSize = 400;
+      for (var i = 0; i < idsToDelete.length; i += batchSize) {
+        final end = (i + batchSize < idsToDelete.length) ? i + batchSize : idsToDelete.length;
+        final chunk = idsToDelete.sublist(i, end);
+        final batch = firestore.batch();
 
-      // Get all transaction IDs from Firestore
-      final firestoreSnapshot = await firestore
-          .collection('transactions')
-          .doc(userId)
-          .collection('userTransactions')
-          .get();
-
-      // Find transactions in Firestore that don't exist locally
-      final transactionsToDelete = <String>[];
-      for (final doc in firestoreSnapshot.docs) {
-        if (!localTransactionIds.contains(doc.id)) {
-          transactionsToDelete.add(doc.id);
+        for (final transactionId in chunk) {
+          final docRef = firestore
+              .collection('transactions')
+              .doc(userId)
+              .collection('userTransactions')
+              .doc(transactionId);
+          batch.delete(docRef);
         }
-      }
 
-      // Delete orphaned transactions from Firestore
-      for (final transactionId in transactionsToDelete) {
-        await firestore
-            .collection('transactions')
-            .doc(userId)
-            .collection('userTransactions')
-            .doc(transactionId)
-            .delete();
-        debugPrint('Deleted transaction $transactionId from Firestore');
-      }
-
-      if (transactionsToDelete.isNotEmpty) {
-        debugPrint('Synced ${transactionsToDelete.length} transaction deletion(s) to Firestore');
+        await batch.commit();
+        await TransactionHiveStorage.clearDeletedIds(chunk);
+        debugPrint('Synced ${chunk.length} transaction deletion(s) to Firestore');
       }
     } catch (e) {
       debugPrint('Error syncing transaction deletions: $e');

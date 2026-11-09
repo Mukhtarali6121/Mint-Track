@@ -3,11 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/goal.dart';
-import '../models/goal_contribution.dart';
 import '../common/goal_hive_storage.dart';
 import '../common/goal_contribution_hive_storage.dart';
 import 'transaction_provider.dart';
-import '../models.dart';
 
 class GoalProvider extends ChangeNotifier {
   GoalProvider();
@@ -168,19 +166,30 @@ class GoalProvider extends ChangeNotifier {
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // 1. Sync unsynced goals (new/updated)
+      // 1. Sync unsynced goals (new/updated) using atomic WriteBatch
       if (unsyncedGoals.isNotEmpty) {
-      for (final goal in unsyncedGoals) {
-        await firestore
-            .collection('goals')
-            .doc(userId) // document for the user
-            .collection('userGoals') // subcollection for this user's goals
-            .doc(goal.id)
-            .set(goal.toFirestoreMap());
+        const batchSize = 400;
+        for (var i = 0; i < unsyncedGoals.length; i += batchSize) {
+          final end = (i + batchSize < unsyncedGoals.length)
+              ? i + batchSize
+              : unsyncedGoals.length;
+          final chunk = unsyncedGoals.sublist(i, end);
+          final batch = firestore.batch();
 
-        // Mark as synced in Hive
-        await GoalHiveStorage.markAsSynced(goal.id);
-      }
+          for (final goal in chunk) {
+            final docRef = firestore
+                .collection('goals')
+                .doc(userId)
+                .collection('userGoals')
+                .doc(goal.id);
+            batch.set(docRef, goal.toFirestoreMap());
+          }
+
+          await batch.commit();
+          final chunkIds = chunk.map((g) => g.id).toList();
+          await GoalHiveStorage.markMultipleAsSynced(chunkIds);
+          debugPrint('Synced batch of ${chunk.length} goal(s) to Firestore');
+        }
       }
 
       // 2. Sync deletions - delete goals from Firestore that don't exist locally
@@ -197,44 +206,33 @@ class GoalProvider extends ChangeNotifier {
     }
   }
 
-  /// Sync deletions: Delete goals from Firestore that don't exist locally
+  /// Sync deletions: Delete pending deleted goals from Firestore without querying all documents
   Future<void> _syncGoalDeletions() async {
     try {
+      final idsToDelete = GoalHiveStorage.getPendingDeletedIds();
+      if (idsToDelete.isEmpty) return;
+
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // Get all local goal IDs
-      final localGoals = GoalHiveStorage.getAllGoals();
-      final localGoalIds = localGoals.map((g) => g.id).toSet();
+      const batchSize = 400;
+      for (var i = 0; i < idsToDelete.length; i += batchSize) {
+        final end = (i + batchSize < idsToDelete.length) ? i + batchSize : idsToDelete.length;
+        final chunk = idsToDelete.sublist(i, end);
+        final batch = firestore.batch();
 
-      // Get all goal IDs from Firestore
-      final firestoreSnapshot = await firestore
-          .collection('goals')
-          .doc(userId)
-          .collection('userGoals')
-          .get();
-
-      // Find goals in Firestore that don't exist locally
-      final goalsToDelete = <String>[];
-      for (final doc in firestoreSnapshot.docs) {
-        if (!localGoalIds.contains(doc.id)) {
-          goalsToDelete.add(doc.id);
+        for (final goalId in chunk) {
+          final docRef = firestore
+              .collection('goals')
+              .doc(userId)
+              .collection('userGoals')
+              .doc(goalId);
+          batch.delete(docRef);
         }
-      }
 
-      // Delete orphaned goals from Firestore
-      for (final goalId in goalsToDelete) {
-        await firestore
-            .collection('goals')
-            .doc(userId)
-            .collection('userGoals')
-            .doc(goalId)
-            .delete();
-        debugPrint('Deleted goal $goalId from Firestore');
-      }
-
-      if (goalsToDelete.isNotEmpty) {
-        debugPrint('Synced ${goalsToDelete.length} goal deletion(s) to Firestore');
+        await batch.commit();
+        await GoalHiveStorage.clearDeletedIds(chunk);
+        debugPrint('Synced ${chunk.length} goal deletion(s) to Firestore');
       }
     } catch (e) {
       debugPrint('Error syncing goal deletions: $e');

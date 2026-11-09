@@ -109,19 +109,30 @@ class AccountProvider extends ChangeNotifier {
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // 1. Sync unsynced accounts (new/updated)
+      // 1. Sync unsynced accounts (new/updated) using atomic WriteBatch
       if (unsyncedAccounts.isNotEmpty) {
-      for (final account in unsyncedAccounts) {
-        await firestore
-            .collection('accounts')
-            .doc(userId) // document for the user
-            .collection('userAccounts') // subcollection for this user's accounts
-            .doc(account.id)
-            .set(account.toFirestoreMap());
+        const batchSize = 400;
+        for (var i = 0; i < unsyncedAccounts.length; i += batchSize) {
+          final end = (i + batchSize < unsyncedAccounts.length)
+              ? i + batchSize
+              : unsyncedAccounts.length;
+          final chunk = unsyncedAccounts.sublist(i, end);
+          final batch = firestore.batch();
 
-        // Mark as synced in Hive
-        await AccountHiveStorage.markAsSynced(account.id);
-      }
+          for (final account in chunk) {
+            final docRef = firestore
+                .collection('accounts')
+                .doc(userId)
+                .collection('userAccounts')
+                .doc(account.id);
+            batch.set(docRef, account.toFirestoreMap());
+          }
+
+          await batch.commit();
+          final chunkIds = chunk.map((a) => a.id).toList();
+          await AccountHiveStorage.markMultipleAsSynced(chunkIds);
+          debugPrint('Synced batch of ${chunk.length} account(s) to Firestore');
+        }
       }
 
       // 2. Sync deletions - delete accounts from Firestore that don't exist locally
@@ -138,45 +149,34 @@ class AccountProvider extends ChangeNotifier {
     }
   }
 
-  /// Sync deletions: Delete accounts from Firestore that don't exist locally
+  /// Sync deletions: Delete pending deleted accounts from Firestore without querying all documents
   Future<void> _syncAccountDeletions() async {
     try {
+      final idsToDelete = AccountHiveStorage.getPendingDeletedIds();
+      if (idsToDelete.isEmpty) return;
+
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // Get all local account IDs (excluding cash which shouldn't be deleted)
-      final localAccounts = AccountHiveStorage.getAllAccounts();
-      final localAccountIds = localAccounts.map((a) => a.id).toSet();
+      const batchSize = 400;
+      for (var i = 0; i < idsToDelete.length; i += batchSize) {
+        final end = (i + batchSize < idsToDelete.length) ? i + batchSize : idsToDelete.length;
+        final chunk = idsToDelete.sublist(i, end);
+        final batch = firestore.batch();
 
-      // Get all account IDs from Firestore
-      final firestoreSnapshot = await firestore
-          .collection('accounts')
-          .doc(userId)
-          .collection('userAccounts')
-          .get();
-
-      // Find accounts in Firestore that don't exist locally
-      final accountsToDelete = <String>[];
-      for (final doc in firestoreSnapshot.docs) {
-        // Don't delete cash account even if it's missing locally
-        if (doc.id != 'cash' && !localAccountIds.contains(doc.id)) {
-          accountsToDelete.add(doc.id);
+        for (final accountId in chunk) {
+          if (accountId == 'cash') continue; // Safety guard: never delete cash account
+          final docRef = firestore
+              .collection('accounts')
+              .doc(userId)
+              .collection('userAccounts')
+              .doc(accountId);
+          batch.delete(docRef);
         }
-      }
 
-      // Delete orphaned accounts from Firestore
-      for (final accountId in accountsToDelete) {
-        await firestore
-            .collection('accounts')
-            .doc(userId)
-            .collection('userAccounts')
-            .doc(accountId)
-            .delete();
-        debugPrint('Deleted account $accountId from Firestore');
-      }
-
-      if (accountsToDelete.isNotEmpty) {
-        debugPrint('Synced ${accountsToDelete.length} account deletion(s) to Firestore');
+        await batch.commit();
+        await AccountHiveStorage.clearDeletedIds(chunk);
+        debugPrint('Synced ${chunk.length} account deletion(s) to Firestore');
       }
     } catch (e) {
       debugPrint('Error syncing account deletions: $e');

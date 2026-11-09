@@ -117,10 +117,12 @@ class _ChartsScreenState extends State<ChartsScreen>
               // Ensure selected year is valid
               if (!availableYears.contains(_selectedYear)) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  setState(() {
-                    _selectedYear = availableYears.isEmpty ? DateTime.now().year : availableYears.first;
-                    _selectedMonth = DateTime(_selectedYear, _selectedMonth.month);
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _selectedYear = availableYears.isEmpty ? DateTime.now().year : availableYears.first;
+                      _selectedMonth = DateTime(_selectedYear, _selectedMonth.month);
+                    });
+                  }
                 });
               }
               
@@ -129,9 +131,11 @@ class _ChartsScreenState extends State<ChartsScreen>
               // Ensure selected month is valid
               if (!availableMonths.contains(_selectedMonth.month)) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  setState(() {
-                    _selectedMonth = DateTime(_selectedYear, availableMonths.isEmpty ? DateTime.now().month : availableMonths.first);
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _selectedMonth = DateTime(_selectedYear, availableMonths.isEmpty ? DateTime.now().month : availableMonths.first);
+                    });
+                  }
                 });
               }
               

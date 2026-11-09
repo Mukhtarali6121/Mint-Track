@@ -312,18 +312,30 @@ class RecurringTransactionProvider extends ChangeNotifier {
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // 1. Sync unsynced recurring transactions (new/updated)
+      // 1. Sync unsynced recurring transactions (new/updated) using atomic WriteBatch
       if (unsyncedRecurring.isNotEmpty) {
-      for (final recurring in unsyncedRecurring) {
-        await firestore
-            .collection('recurringTransactions')
-            .doc(userId)
-            .collection('userRecurringTransactions')
-            .doc(recurring.id)
-            .set(recurring.toFirestoreMap());
+        const batchSize = 400;
+        for (var i = 0; i < unsyncedRecurring.length; i += batchSize) {
+          final end = (i + batchSize < unsyncedRecurring.length)
+              ? i + batchSize
+              : unsyncedRecurring.length;
+          final chunk = unsyncedRecurring.sublist(i, end);
+          final batch = firestore.batch();
 
-        await RecurringTransactionHiveStorage.markAsSynced(recurring.id);
-      }
+          for (final recurring in chunk) {
+            final docRef = firestore
+                .collection('recurringTransactions')
+                .doc(userId)
+                .collection('userRecurringTransactions')
+                .doc(recurring.id);
+            batch.set(docRef, recurring.toFirestoreMap());
+          }
+
+          await batch.commit();
+          final chunkIds = chunk.map((r) => r.id).toList();
+          await RecurringTransactionHiveStorage.markMultipleAsSynced(chunkIds);
+          debugPrint('Synced batch of ${chunk.length} recurring transaction(s) to Firestore');
+        }
       }
 
       // 2. Sync deletions - delete recurring transactions from Firestore that don't exist locally
@@ -339,44 +351,33 @@ class RecurringTransactionProvider extends ChangeNotifier {
     }
   }
 
-  /// Sync deletions: Delete recurring transactions from Firestore that don't exist locally
+  /// Sync deletions: Delete pending deleted recurring transactions from Firestore without querying all documents
   Future<void> _syncRecurringTransactionDeletions() async {
     try {
+      final idsToDelete = RecurringTransactionHiveStorage.getPendingDeletedIds();
+      if (idsToDelete.isEmpty) return;
+
       final userId = _getUserId();
       final firestore = FirebaseFirestore.instance;
 
-      // Get all local recurring transaction IDs
-      final localRecurring = RecurringTransactionHiveStorage.getAllRecurringTransactions();
-      final localRecurringIds = localRecurring.map((r) => r.id).toSet();
+      const batchSize = 400;
+      for (var i = 0; i < idsToDelete.length; i += batchSize) {
+        final end = (i + batchSize < idsToDelete.length) ? i + batchSize : idsToDelete.length;
+        final chunk = idsToDelete.sublist(i, end);
+        final batch = firestore.batch();
 
-      // Get all recurring transaction IDs from Firestore
-      final firestoreSnapshot = await firestore
-          .collection('recurringTransactions')
-          .doc(userId)
-          .collection('userRecurringTransactions')
-          .get();
-
-      // Find recurring transactions in Firestore that don't exist locally
-      final recurringToDelete = <String>[];
-      for (final doc in firestoreSnapshot.docs) {
-        if (!localRecurringIds.contains(doc.id)) {
-          recurringToDelete.add(doc.id);
+        for (final recurringId in chunk) {
+          final docRef = firestore
+              .collection('recurringTransactions')
+              .doc(userId)
+              .collection('userRecurringTransactions')
+              .doc(recurringId);
+          batch.delete(docRef);
         }
-      }
 
-      // Delete orphaned recurring transactions from Firestore
-      for (final recurringId in recurringToDelete) {
-        await firestore
-            .collection('recurringTransactions')
-            .doc(userId)
-            .collection('userRecurringTransactions')
-            .doc(recurringId)
-            .delete();
-        debugPrint('Deleted recurring transaction $recurringId from Firestore');
-      }
-
-      if (recurringToDelete.isNotEmpty) {
-        debugPrint('Synced ${recurringToDelete.length} recurring transaction deletion(s) to Firestore');
+        await batch.commit();
+        await RecurringTransactionHiveStorage.clearDeletedIds(chunk);
+        debugPrint('Synced ${chunk.length} recurring transaction deletion(s) to Firestore');
       }
     } catch (e) {
       debugPrint('Error syncing recurring transaction deletions: $e');

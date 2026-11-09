@@ -105,12 +105,12 @@ class _MainPageWidgetState extends State<MainPageWidget> with SingleTickerProvid
                   activeIcon: Icons.analytics,
                   label: 'Analytics',
                 ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.track_changes_outlined,
-                  activeIcon: Icons.track_changes,
-                  label: 'Goals',
-                ),
+                // _buildNavItem(
+                //   index: 2,
+                //   icon: Icons.track_changes_outlined,
+                //   activeIcon: Icons.track_changes,
+                //   label: 'Goals',
+                // ),
                 _buildNavItem(
                   index: 3,
                   icon: Icons.person_outline,

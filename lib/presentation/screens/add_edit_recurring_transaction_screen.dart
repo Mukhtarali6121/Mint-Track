@@ -91,6 +91,7 @@ class _AddEditRecurringTransactionScreenState extends State<AddEditRecurringTran
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => CategoryPickerBottomSheet(
         transactionType: _type,
         selectedCategory: _category,

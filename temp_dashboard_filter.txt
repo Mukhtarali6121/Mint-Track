@@ -1,0 +1,628 @@
+  void _showFilterBottomSheet(BuildContext context) {
+    final accountProvider = context.read<AccountProvider>();
+    final accounts = accountProvider.accounts;
+
+    PeriodFilter tempFilter = _filter;
+    String? tempAccountId = _selectedAccountId;
+    DateTimeRange? tempCustomRange = _customRange;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.accentGreen.withOpacity(0.15),
+                                  AppColors.accentGreen.withOpacity(0.08),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.tune_rounded,
+                              color: AppColors.accentGreen,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Filter Transactions',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Customize your view',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundScaffold,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: AppColors.textSecondary,
+                                size: 20,
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Time Period Section
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundScaffold,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.border.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentGreen.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 16,
+                                    color: AppColors.accentGreen,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Time Period',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            StatefulBuilder(
+                              builder: (context, setState) {
+                                // Calculate date range for current selection
+                                DateTimeRange getTempRange() {
+                                  final now = DateTime.now();
+                                  switch (tempFilter) {
+                                    case PeriodFilter.day:
+                                      return DateTimeRange(
+                                        start: _startOfDay(now),
+                                        end: _endOfDay(now),
+                                      );
+                                    case PeriodFilter.week:
+                                      final start = now.subtract(
+                                        Duration(days: now.weekday - 1),
+                                      );
+                                      final end = start.add(const Duration(days: 6));
+                                      return DateTimeRange(
+                                        start: _startOfDay(start),
+                                        end: _endOfDay(end),
+                                      );
+                                    case PeriodFilter.month:
+                                      final start = DateTime(now.year, now.month, 1);
+                                      final end = DateTime(now.year, now.month + 1, 0);
+                                      return DateTimeRange(
+                                        start: _startOfDay(start),
+                                        end: _endOfDay(end),
+                                      );
+                                    case PeriodFilter.year:
+                                      final start = DateTime(now.year, 1, 1);
+                                      final end = DateTime(now.year, 12, 31);
+                                      return DateTimeRange(
+                                        start: _startOfDay(start),
+                                        end: _endOfDay(end),
+                                      );
+                                    case PeriodFilter.custom:
+                                      return tempCustomRange ??
+                                          DateTimeRange(
+                                            start: _startOfDay(now),
+                                            end: _endOfDay(now),
+                                          );
+                                  }
+                                }
+
+                                final previewRange = getTempRange();
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final period in [
+                                          PeriodFilter.day,
+                                          PeriodFilter.week,
+                                          PeriodFilter.month,
+                                          PeriodFilter.year,
+                                          PeriodFilter.custom,
+                                        ])
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () async {
+                                                if (period == PeriodFilter.custom) {
+                                                  final picked = await showDateRangePicker(
+                                                    context: context,
+                                                    firstDate: DateTime(2015),
+                                                    lastDate: DateTime(2100),
+                                                    initialDateRange:
+                                                        tempCustomRange ?? _currentRange(),
+                                                  );
+
+                                                  if (picked != null) {
+                                                    setState(() {
+                                                      tempFilter = period;
+                                                      tempCustomRange = DateTimeRange(
+                                                        start: _startOfDay(picked.start),
+                                                        end: _endOfDay(picked.end),
+                                                      );
+                                                    });
+                                                  }
+                                                } else {
+                                                  setState(() {
+                                                    tempFilter = period;
+                                                    tempCustomRange = null;
+                                                  });
+                                                }
+                                              },
+                                              borderRadius: BorderRadius.circular(14),
+                                              child: AnimatedContainer(
+                                                duration: const Duration(milliseconds: 200),
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 20,
+                                                  vertical: 12,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  gradient: tempFilter == period
+                                                      ? LinearGradient(
+                                                          colors: [
+                                                            AppColors.accentGreen,
+                                                            AppColors.accentGreen.withOpacity(0.8),
+                                                          ],
+                                                        )
+                                                      : null,
+                                                  color: tempFilter == period
+                                                      ? null
+                                                      : Colors.white,
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  border: Border.all(
+                                                    color: tempFilter == period
+                                                        ? AppColors.accentGreen
+                                                        : AppColors.border.withOpacity(0.3),
+                                                    width: tempFilter == period ? 0 : 1.5,
+                                                  ),
+                                                  boxShadow: tempFilter == period
+                                                      ? [
+                                                          BoxShadow(
+                                                            color: AppColors.accentGreen.withOpacity(0.3),
+                                                            blurRadius: 8,
+                                                            offset: const Offset(0, 2),
+                                                          ),
+                                                        ]
+                                                      : null,
+                                                ),
+                                                child: Text(
+                                                  _labelForFilter(period),
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: tempFilter == period
+                                                        ? Colors.white
+                                                        : AppColors.textPrimary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Date Preview
+                                    Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            AppColors.accentGreen.withOpacity(0.12),
+                                            AppColors.accentGreen.withOpacity(0.06),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: AppColors.accentGreen.withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentGreen.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.date_range_rounded,
+                                              size: 16,
+                                              color: AppColors.accentGreen,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Selected Period',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  _getDateRangeTextForRange(
+                                                    previewRange,
+                                                    tempFilter,
+                                                  ),
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AppColors.accentGreen,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      if (accounts.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.backgroundScaffold,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: AppColors.border.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentGreen.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.account_balance_wallet_rounded,
+                                      size: 16,
+                                      color: AppColors.accentGreen,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Account',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              StatefulBuilder(
+                                builder: (context, setState) => Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    // All Accounts option
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            tempAccountId = null;
+                                          });
+                                        },
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: tempAccountId == null
+                                                ? LinearGradient(
+                                                    colors: [
+                                                      AppColors.accentGreen,
+                                                      AppColors.accentGreen.withOpacity(0.8),
+                                                    ],
+                                                  )
+                                                : null,
+                                            color: tempAccountId == null
+                                                ? null
+                                                : Colors.white,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: tempAccountId == null
+                                                  ? AppColors.accentGreen
+                                                  : AppColors.border.withOpacity(0.3),
+                                              width: tempAccountId == null ? 0 : 1.5,
+                                            ),
+                                            boxShadow: tempAccountId == null
+                                                ? [
+                                                    BoxShadow(
+                                                      color: AppColors.accentGreen.withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                          child: Text(
+                                            'All Accounts',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: tempAccountId == null
+                                                  ? Colors.white
+                                                  : AppColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Individual accounts
+                                    for (final account in accounts)
+                                      Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              tempAccountId = account.id;
+                                            });
+                                          },
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(milliseconds: 200),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              gradient: tempAccountId == account.id
+                                                  ? LinearGradient(
+                                                      colors: [
+                                                        AppColors.accentGreen,
+                                                        AppColors.accentGreen.withOpacity(0.8),
+                                                      ],
+                                                    )
+                                                  : null,
+                                              color: tempAccountId == account.id
+                                                  ? null
+                                                  : Colors.white,
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: tempAccountId == account.id
+                                                    ? AppColors.accentGreen
+                                                    : AppColors.border.withOpacity(0.3),
+                                                width: tempAccountId == account.id ? 0 : 1.5,
+                                              ),
+                                              boxShadow: tempAccountId == account.id
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: AppColors.accentGreen.withOpacity(0.3),
+                                                        blurRadius: 8,
+                                                        offset: const Offset(0, 2),
+                                                      ),
+                                                    ]
+                                                  : null,
+                                            ),
+                                            child: Text(
+                                              account.name,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: tempAccountId == account.id
+                                                    ? Colors.white
+                                                    : AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      const SizedBox(height: 8),
+
+                      // Apply Button
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.accentGreen,
+                              AppColors.accentGreen.withOpacity(0.9),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accentGreen.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _filter = tempFilter;
+                                _selectedAccountId = tempAccountId;
+                                _customRange = tempCustomRange;
+                              });
+                              Navigator.pop(context);
+                            },
+                            borderRadius: BorderRadius.circular(18),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Apply Filters',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Reset Button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _filter = PeriodFilter.month;
+                              _selectedAccountId = null;
+                              _customRange = null;
+                            });
+                            Navigator.pop(context);
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundScaffold,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.border.withOpacity(0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.refresh_rounded,
+                                  color: AppColors.textSecondary,
+                                  size: 18,
