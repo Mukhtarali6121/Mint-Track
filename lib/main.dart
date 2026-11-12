@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:expense_tracker/services/sms_transaction_service.dart';
+import 'package:expense_tracker/widgets/quick_add_transaction_sheet.dart';
 import 'package:expense_tracker/presentation/screens/MainPage.dart';
 import 'package:expense_tracker/presentation/screens/login/create_account_screen.dart';
 import 'package:expense_tracker/presentation/screens/edit_categories_page.dart';
@@ -12,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'common/app_navigator.dart';
 import 'common/currency_provider.dart';
 import 'providers/goal_provider.dart';
 import 'providers/recurring_transaction_provider.dart';
@@ -75,6 +79,7 @@ void main() async {
   await RecurringTransactionHiveStorage.init(); // Initialize Recurring Transaction storage
   await GoalContributionHiveStorage.init(); // Initialize Goal Contribution storage
   await NotificationService().initialize();
+  await SmsTransactionService().initialize();
   
   // Schedule daily notification at 9 PM (works even when app is killed)
   // Request permissions first, then schedule
@@ -118,13 +123,76 @@ void main() async {
 }
 
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final bool isLoggedIn;
   final bool onboardingCompleted;
 
   const MyApp({super.key, required this.isLoggedIn, required this.onboardingCompleted});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  StreamSubscription<DetectedTransaction>? _smsSubscription;
+  DateTime? _lastShownTime;
+  double? _lastShownAmount;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for detected transactions arriving while app is running
+    _smsSubscription = SmsTransactionService().onTransactionDetected.listen((txn) {
+      debugPrint('Detected transaction received via stream: ${txn.amount}');
+      _showTransactionPrompt(txn);
+    });
+
+    // Check if the app was launched by tapping a transaction notification
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final pending = await SmsTransactionService().checkPendingTransaction();
+      if (pending != null) {
+        debugPrint('Found pending transaction from launch intent: ${pending.amount}');
+        _showTransactionPrompt(pending);
+      }
+    });
+  }
+
+  void _showTransactionPrompt(DetectedTransaction txn) {
+    // Prevent duplicate triggers within 3 seconds
+    if (_lastShownAmount == txn.amount &&
+        _lastShownTime != null &&
+        DateTime.now().difference(_lastShownTime!).inSeconds < 3) {
+      return;
+    }
+    _lastShownTime = DateTime.now();
+    _lastShownAmount = txn.amount;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _attemptShowSheet(txn, 0);
+    });
+  }
+
+  void _attemptShowSheet(DetectedTransaction txn, int attempt) {
+    final navState = navigatorKey.currentState;
+    final overlayContext = navState?.overlay?.context;
+
+    if (overlayContext != null && mounted) {
+      debugPrint('Showing QuickAddTransactionSheet on overlayContext');
+      QuickAddTransactionSheet.show(overlayContext, txn);
+    } else if (attempt < 10) {
+      // Retry every 200ms while Flutter navigator mounts the initial route
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) _attemptShowSheet(txn, attempt + 1);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _smsSubscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // 2. WRAP WITH MULTIPROVIDER TO HANDLE MULTIPLE PROVIDERS
@@ -138,6 +206,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PremiumProvider()),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'Expense Tracker',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -238,9 +307,9 @@ class MyApp extends StatelessWidget {
   }
 
   Widget _getInitialScreen() {
-    if (!onboardingCompleted) {
+    if (!widget.onboardingCompleted) {
       return const OnboardingScreen();
-    } else if (isLoggedIn) {
+    } else if (widget.isLoggedIn) {
       return const MainPageWidget();
     } else {
       return const LoginScreen();

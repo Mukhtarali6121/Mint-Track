@@ -15,6 +15,7 @@ import '../../providers/recurring_transaction_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../services/data_cleanup_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/sms_transaction_service.dart';
 import '../../theme/app_colors.dart';
 import 'login/login_Screen.dart';
 
@@ -29,6 +30,7 @@ class MoreScreen extends StatefulWidget {
 class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   bool _isSyncing = false;
   bool _notificationsEnabled = false;
+  bool _smsDetectionEnabled = false;
   String _appVersion = 'Loading...';
 
   late AnimationController _fadeController;
@@ -484,6 +486,9 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     // Check notification status
     _checkNotificationStatus();
 
+    // Check SMS detection permission
+    _checkSmsPermission();
+
     // Load app version
     _loadAppVersion();
   }
@@ -505,6 +510,56 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
           _appVersion = 'Version 1.0.3';
         });
       }
+    }
+  }
+
+  /// Check if SMS detection is enabled
+  Future<void> _checkSmsPermission() async {
+    try {
+      final isGranted = await SmsTransactionService().hasSmsPermission();
+      if (mounted) {
+        setState(() {
+          _smsDetectionEnabled = isGranted;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking SMS permission: $e');
+    }
+  }
+
+  /// Toggle SMS transaction detection
+  Future<void> _toggleSmsPermission() async {
+    try {
+      if (_smsDetectionEnabled) {
+        // Can't revoke runtime permission programmatically on Android, inform user
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('To disable SMS permission, please change it in Android App Settings.'),
+              backgroundColor: AppColors.textSecondary,
+            ),
+          );
+        }
+      } else {
+        final granted = await SmsTransactionService().requestSmsPermission();
+        if (mounted) {
+          setState(() {
+            _smsDetectionEnabled = granted;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                granted
+                    ? '⚡ Auto-detection enabled! Incoming bank & UPI SMS will prompt to add.'
+                    : 'SMS permission was denied.',
+              ),
+              backgroundColor: granted ? AppColors.accentGreen : AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error toggling SMS permission: $e');
     }
   }
 
@@ -858,6 +913,21 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
             //     onTap: _scheduleTestNotification,
             //   ),
             // ],
+            const _SectionHeader(title: 'Smart Transaction Detection'),
+            _NavTile(
+              icon: Icons.sms_outlined,
+              label: 'Detect SMS Transactions',
+              subtitle: _smsDetectionEnabled
+                  ? 'Active (Alerts for GPay & bank SMS)'
+                  : 'Tap to enable permissions',
+              trailing: Switch(
+                value: _smsDetectionEnabled,
+                onChanged: (value) => _toggleSmsPermission(),
+                activeColor: AppColors.accentGreen,
+              ),
+              onTap: _toggleSmsPermission,
+            ),
+
             const _SectionHeader(title: 'Other'),
             // _NavTile(icon: Icons.build, label: 'Advanced', route: '/advanced'),
             // _NavTile(icon: Icons.help_center, label: 'Help Center', route: '/help'),
